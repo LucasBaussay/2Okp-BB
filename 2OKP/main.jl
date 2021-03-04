@@ -1,5 +1,7 @@
+
 include("dataStruct.jl")
 include("1okp.jl")
+include("branchAndBound.jl")
 
 function weightedScalarRelax(prob::Problem, λ::Vector{Float64})
     @assert length(λ) == prob.nbObj "Le vecteur λ ne convient pas"
@@ -71,6 +73,11 @@ function secondPhase(prob::Problem, params...)
 
 
 
+end
+
+function jules(fname::String = "test.dat", methodName::String = "TwoPhases", params...)
+    prob = parser(fname)
+    testBandB(prob)
 end
 
 function main(fname::String = "test.dat", methodName::String = "TwoPhases", params...)
