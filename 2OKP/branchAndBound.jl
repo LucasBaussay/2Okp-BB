@@ -2,7 +2,8 @@
 function testBandB(P::Problem)
     print(P)
     A = [-1,-1,-1]
-    branchAndBound(P,A,1,[])
+    branchAndBound(P,A,1,[0])
+    print("end")
 end
 
 # test wether the subproblem is optimal or not
@@ -30,6 +31,7 @@ end
 
 # return a tuple of the two vectors : assignements for the two subproblems
 function newAssignments(A::Vector{Int},i::Int)
+    return [0],[0]
 end
 
 function branchAndBound(P::Problem,A::Vector{Int},i::Int,S::Vector{Int})
