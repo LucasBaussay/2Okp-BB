@@ -28,11 +28,17 @@ end
 function addSolution(S::Vector{Int})
 end
 
+# return a tuple of the two vectors : assignements for the two subproblems
+function newAssignments(A::Vector{Int},i::Int)
+end
+
 function branchAndBound(P::Problem,A::Vector{Int},i::Int,S::Vector{Int})
     if isFathomedByOptimality()
         updateBounds()
         addSolution(S)
     elseif !isFathomedByDominance() && !isFathomedByInfeasibility()
-        
+        AO,A1 = newAssignments(A,i) # creating the two assignements for the subproblems
+        branchAndBound(P,A0,i+1,S) # exploring the first subproblem
+        branchAndBound(P,A1,i+1,S) # exploring the second subproblem
     end
 end
