@@ -1,11 +1,13 @@
 
 include("1okp.jl")
 
+
 function weightedScalarRelax(prob::Problem, λ::Vector{Float64})
     @assert length(λ) == prob.nbObj "Le vecteur λ ne convient pas"
 
-    obj = Vector{Float64}(undef, prob.nbVar)
-    sumLambda= sum(λ)
+    obj       = Vector{Float64}(undef, prob.nbVar)
+    sumLambda = sum(λ)
+
     for iterVar = 1:prob.nbVar
         obj[iterVar] = sum([λ[iter] * prob.objs[iter].profits[iterVar] for iter = 1:prob.nbObj])
     end
@@ -18,6 +20,7 @@ function weightedScalarRelax(prob::Problem, λ::Vector{Float64})
     )
 end
 
+# return res the point associated with the solution x and the problem prob
 function evaluate(prob::Problem, x::Vector{Bool})
     res = zeros(Float64, prob.nbObj)
     for iterObj = 1:prob.nbObj
@@ -29,9 +32,9 @@ function evaluate(prob::Problem, x::Vector{Bool})
     end
 
     return res
-
 end
 
+# temporary test function
 function testBandB(P::Problem)
     print(P)
     A = [-1,-1,-1]
@@ -39,6 +42,7 @@ function testBandB(P::Problem)
     print("end")
 end
 
+# return in which way the subproblem can be fathomed : infeasible, optimality, dominated
 function whichFathomed(upperBound::DualSet, lowerBound::Vector{Solution}, S::Vector{Solution}, consecutivePoint::Vector{Tuple{Solution}})
 
     test = true
@@ -47,7 +51,7 @@ function whichFathomed(upperBound::DualSet, lowerBound::Vector{Solution}, S::Vec
     if length(upperBound.b) == 0
         return infeasible
     elseif length(lowerBound) == 1
-        return oprimality
+        return optimality
     else
         while test && iter < length(consecutivePoint)
             iter += 1
@@ -172,7 +176,7 @@ function branchAndBound(prob::Problem, assignement::Vector{Int},S::Vector{Soluti
         updateBounds!(S, consecutiveSet, lowerBoundSub)
     end
     if fathomed == none
-        AO,A1 = newAssignments(assignement,i) # creating the two assignements for the subproblems : A0 is a copy, A1 == assignement
+        A0,A1 = newAssignments(assignement,i) # creating the two assignements for the subproblems : A0 is a copy, A1 == assignement
         branchAndBound(prob,A0,i+1,S) # exploring the first subproblem
         branchAndBound(prob,A1,i+1,S) # exploring the second subproblem
     end
