@@ -54,17 +54,50 @@ function isFathomedByInfeasibility()
     return true
 end
 
-# update upper et lower bound sets according to the new feasible subproblem
-function updateBounds()
+function whichFathomed(upperBound::DualSet, S::vector{Solution})
+    if isFathomedByOptimality(upperBound, S)
+        return optimality
+    elseif isFathomedByDominance(upperBound, S)
+        return dominance
+    elseif isFathomedByInfeasibility(upperBound, S)
+        return infeasibility
+    else
+        return none
+    end
 end
 
-# add the newly found solution to the vector of solutions
-function addSolution(S::Vector{Int})
+# update upper et lower bound sets according to the new feasible subproblem
+function updateBounds!(S::Vector{Solution}, consecutiveSet::Vector{Tuple{Solution, Solution}}, lowerBoundSub::Vector{Solution})
+
+    indSuppr = Vector{Int}(undef, length(consecutiveSet))
+    indFinIndSuppr = 0
+
+    for subSol in lowerBoundSub
+        for iter = 1:length(consecutiveSet)
+            solR, solL = consecutiveSet[iter]
+            if subSol.y[1] > min(solR.y[1], solL.y[1]) && subSol.y[2] > min(solR.y[2], solL.y[2])
+                push!(S, subSol)
+                push!(consecutiveSet, (solR, subSol))
+                push!(consecutiveSet, (subSol, solL))
+
+                indFinIndSuppr += 1
+                indSuppr[indFinIndSuppr] = iter
+            end
+        end
+    end
+
+    for iter = 1:indFinIndSuppr
+        deleteat!(consecutiveSet, indSuppr[iter]-iter)
+    end
+
 end
 
 # return a tuple of the two vectors : assignements for the two subproblems
 function newAssignments(A::Vector{Int},i::Int)
-    return [0],[0]
+    copyA = A[1:end]
+    copyA[i] = 0
+    A[i] = 1
+    return copyA, A
 end
 
 function computBoundDicho(prob::Problem, params...)
@@ -73,7 +106,7 @@ function computBoundDicho(prob::Problem, params...)
 
     ϵ = params[1]
     XSEm = []
-    consecutiveSet = Vector{Tuple{Int, Int}}()
+    consecutiveSet = Vector{Tuple{Solution, Solution}}()
     S = []
     x1 = solve1OKP(weightedScalarRelax(prob, [1., ϵ]))
     x2 = solve1OKP(weightedScalarRelax(prob, [ϵ, 1.]))
@@ -81,42 +114,62 @@ function computBoundDicho(prob::Problem, params...)
     zx1 = evaluate(prob, x1)
     zx2 = evaluate(prob, x2)
 
+    sol1 = Solution(x1, zx1)
+    sol2 = Solution(x2, zx2)
+
     if zx1 == zx2
-        push!(XSEm, x1)
+        push!(XSEm, sol1)
     else
-        push!(S, (zx1, zx2))
-        push!(XSEm, x1, x2)
+        push!(S, (sol1, sol2))
+        push!(XSEm, sol1, sol2)
         while length(S) != 0
-            yr, yl = pop!(S)
-            λ = [yl[2]-yr[2], yr[1]-yl[1]]
+            solR, solL = pop!(S)
+            λ = [solL.y[2]-solR.y[2], solR.y[1]-solL.y[1]]
             xe = solve1OKP(weightedScalarRelax(prob, λ))
 
             zxe = evaluate(prob, xe)
 
-            if sum(λ .* zxe) > sum(λ .* yr)
-                push!(XSEm, xe)
-                push!(S, (yr, zxe), (zxe, yl))
+            solE = Solution(xe, zxe)
+
+            if sum(λ .* solE.y) > sum(λ .* solR.y)
+                push!(XSEm, solE)
+                push!(S, (solR, solE), (solE, solL))
             else
-                push!(consecutiveSet, (yr, yl))
+                push!(consecutiveSet, (solR, solL))
             end
         end
     end
 
+    A = Array{Float64, 2}(undef, length(consecutiveSet), 2)
+    B = Vector{Float64}(undef, length(consecutiveSet))
 
+    for iter = 1:length(consecutiveSet)
+        b, a = consecutiveSet[iter]
+        b, a = b.y, a.y
+        A[iter, 1] = b[2] - a[2]
+        A[iter, 2] = a[1] - b[1]
+
+        B[iter] = (b[2] - a[2]) * a[1] - (b[1] - a[1]) * a[2]
+    end
+
+    return XSEm, consecutiveSet, DualSet(A, B)
 
 end
 
-function branchAndBound(prob::Problem, assignement::Vector{Int},S::Vector{Vector{Bool}}, i::Int = 1; ϵ::Float64 =0.01)
+function branchAndBound(prob::Problem, assignement::Vector{Int},S::Vector{Solution}, consecutiveSet::Vector{Tuple{Solution, Solution}}, i::Int = 0; ϵ::Float64 =0.01)
 
-    upperBound, lowerBound = computeBoundDicho(prob, ϵ)
+    #Arranger pour un sous problème
+    lowerBoundSub, consecutivePointSub, upperBoundSub::DualSet = computeBoundDicho(subProblem(prob, assignement, i), ϵ)
 
-    if isFathomedByOptimality()
-        updateBounds()
-        addSolution(S)
-    elseif !isFathomedByDominance() && !isFathomedByInfeasibility()
-        AO,A1 = newAssignments(A,i) # creating the two assignements for the subproblems
-        branchAndBound(P,A0,i+1,S) # exploring the first subproblem
-        branchAndBound(P,A1,i+1,S) # exploring the second subproblem
+    fathomed::Fathomed = whichFathomed(upperBound, S)
+
+    if fathomed != dominated && fathomed != infeasible
+        updateBounds!(S, consecutiveSet, lowerBoundSub)
+    end
+    if fathomed == none
+        AO,A1 = newAssignments(assignement,i) # creating the two assignements for the subproblems : A0 is a copy, A1 == assignement
+        branchAndBound(prob,A0,i+1,S) # exploring the first subproblem
+        branchAndBound(prob,A1,i+1,S) # exploring the second subproblem
     end
 end
 
@@ -131,18 +184,17 @@ function reorderVariable(prob::Problem, reorderVect::Vector{Int})
     )
 end
 
-function main_BranchandBound(prob::Problem, S::Vector{Vector{Bool}}, orderName = "Random", ϵ::Float64 = 0.01)
+function main_BranchandBound(prob::Problem, orderName = "Random", ϵ::Float64 = 0.01)
 
     permVect = Random.shuffle(1:prob.nbVar)
     auxProb = reorderVariable(prob, permVect)
 
-    # S is ma primal Set
-    auxS = [S[iter][permVect] for iter = 1:length(S)]
+    S, consecutivePoint, weDontNeedItHere = computeBoundDicho(auxProb, ϵ)
 
     assignement = Vector{Int}(undef, prob.nbVar)
     for iter=1:prob.nbVar
         assignement[iter] = -1
     end
 
-    branchAndBound(auxProb, assignment, auxS, ϵ = ϵ)
+    branchAndBound(auxProb, assignment, S, consecutivePoint, ϵ = ϵ)
 end

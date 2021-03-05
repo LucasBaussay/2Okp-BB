@@ -15,6 +15,16 @@ struct Problem
     constraint::Const
 end
 
+struct Solution
+    x::Vector{Bool}
+    y::Vector{Float64}
+end
+
+struct DualSet
+    A::Array{Float64, 2}
+    b::Vector{Float64}
+end
+
 import Base.show
 
 function Base.show(io::IO, prob::Problem)
@@ -70,4 +80,23 @@ function parser(fname::String)
         Obj.(objs),
         Const(maxWeight, parse.(Float64, split(readline(f), " ")))
     )
+end
+
+function subProblem(prob::Problem, assignement::Vector{Int}, iter::Int)
+
+    actualWeight = 0.
+
+    for ind = 1:iter
+        actualWeight += assignement[ind] * prob.constraint.weights[ind]
+    end
+
+    return Problem(
+
+        prob.nbObj,
+        prob.nbVar-iter,
+        [Obj(prob.obj[ind].profits[(iter+1):end]) for ind =1:prob.nbObjs],
+        Const(prob.constraint.maxWeight - actualWeight, prob.constraint.weights[(iter+1):end])
+
+    )
+
 end
