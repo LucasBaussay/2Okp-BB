@@ -41,14 +41,15 @@ function testBandB(P::Problem)
     print("end")
 end
 
+# return the way the subproblem is fathomed : none, infeasibility, optimality, dominance
 function whichFathomed(upperBound::DualSet, lowerBound::Vector{Solution}, S::Vector{Solution}, consecutivePoint::Vector{Tuple{Solution, Solution}})
 
     test = true
     iter = 0
 
-    if length(upperBound.b)   == 0
+    if length(lowerBound) == 0 # no solutions supported
         return infeasibility
-    elseif length(lowerBound) == 1
+    elseif length(lowerBound) == 1 # only one feasible solution
         return optimality
     else
         while test && iter < length(consecutivePoint)
@@ -59,7 +60,7 @@ function whichFathomed(upperBound::DualSet, lowerBound::Vector{Solution}, S::Vec
             Ax = upperBound.A * nadirPoint
 
             for ind = 1:length(upperBound.b)
-                test = test && Ax[ind] <= upperBound.b[ind] #Sur du <= ?
+                test = test && Ax[ind] > upperBound.b[ind] #Sur du <= ?
             end
         end
         if test
