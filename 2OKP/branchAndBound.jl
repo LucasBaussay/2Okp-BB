@@ -173,7 +173,7 @@ function branchAndBound(prob::Problem, assignment::Vector{Int}, S::Vector{Soluti
         updateBounds!(S, consecutiveSet, lowerBoundSub)
     end
     if fathomed == none && i<prob.nbVar
-        AO,A1 = newAssignments(assignment,i+1) # creating the two assignments for the subproblems : A0 is a copy, A1 == assignment
+        A0,A1 = newAssignments(assignment,i+1) # creating the two assignments for the subproblems : A0 is a copy, A1 == assignment
         branchAndBound(prob,A0,i+1,S) # exploring the first subproblem
         branchAndBound(prob,A1,i+1,S) # exploring the second subproblem
     end
