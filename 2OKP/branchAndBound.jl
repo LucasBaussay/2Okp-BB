@@ -206,4 +206,6 @@ function main_BranchandBound(prob::Problem, orderName = "Random", ϵ::Float64 = 
     end
 
     branchAndBound(auxProb, assignment, S, consecutivePoint, 0, ϵ = ϵ)
+
+    return S
 end
