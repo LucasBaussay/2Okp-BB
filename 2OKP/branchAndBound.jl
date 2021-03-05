@@ -1,6 +1,7 @@
 
 include("1okp.jl")
 
+
 function weightedScalarRelax(prob::Problem, λ::Vector{Float64})
     @assert length(λ) == prob.nbObj "Le vecteur λ ne convient pas"
 
@@ -17,6 +18,7 @@ function weightedScalarRelax(prob::Problem, λ::Vector{Float64})
     )
 end
 
+# return res the point associated with the solution x and the problem prob
 function evaluate(prob::Problem, x::Vector{Bool})
     res = zeros(Float64, prob.nbObj)
     for iterObj = 1:prob.nbObj
@@ -28,9 +30,9 @@ function evaluate(prob::Problem, x::Vector{Bool})
     end
 
     return res
-
 end
 
+# temporary test function
 function testBandB(P::Problem)
     print(P)
     A = [-1,-1,-1]
