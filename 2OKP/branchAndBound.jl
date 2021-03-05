@@ -5,12 +5,8 @@ include("1okp.jl")
 function weightedScalarRelax(prob::Problem, λ::Vector{Float64})
     @assert length(λ) == prob.nbObj "Le vecteur λ ne convient pas"
 
-<<<<<<< HEAD
     obj       = Vector{Float64}(undef, prob.nbVar)
     # calculate the coefs of each variable by merging all the objectives
-=======
-    obj = Vector{Float64}(undef, prob.nbVar)
->>>>>>> 25e048895dbff4b07e0264468b4de03cab35679f
     for iterVar = 1:prob.nbVar
         obj[iterVar] = sum([λ[iter] * prob.objs[iter].profits[iterVar] for iter = 1:prob.nbObj])
     end
@@ -98,9 +94,6 @@ function updateBounds!(S::Vector{Solution}, consecutiveSet::Vector{Tuple{Solutio
         indSuppr = Vector{Int}(undef, length(consecutiveSet))
         indFinIndSuppr = 0
     end
-
-
-
 end
 
 # return a tuple of the two vectors : assignments for the two subproblems
