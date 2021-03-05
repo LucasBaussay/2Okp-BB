@@ -108,6 +108,12 @@ function solve1OKP(prob::Problem)
 
     sol, lb = backtrack(prob, permList, iterLastOne, bestSolPrim, poidsRestPrim, lb, ub)
 
-    return sol[permList]
+    revPermList = Vector{Int}(undef, length(permList))
+
+    for iter = 1:length(permList)
+        revPermList[permList[iter]] = iter
+    end
+
+    return sol[revPermList]
 
 end

@@ -39,31 +39,36 @@ function testBandB(P::Problem)
     print("end")
 end
 
-# test wether the subproblem is optimal or not
-function isFathomedByOptimality()
-    return true
-end
+function whichFathomed(upperBound::DualSet, lowerBound::Vector{Solution}, S::Vector{Solution}, consecutivePoint::Vector{Tuple{Solution}})
 
-# test wether the subproblem is dominated by another subproblem
-function isFathomedByDominance()
-    return true
-end
+    test = true
+    iter = 0
 
-# test wether the subproblem is infeasible
-function isFathomedByInfeasibility()
-    return true
-end
-
-function whichFathomed(upperBound::DualSet, S::vector{Solution})
-    if isFathomedByOptimality(upperBound, S)
-        return optimality
-    elseif isFathomedByDominance(upperBound, S)
-        return dominance
-    elseif isFathomedByInfeasibility(upperBound, S)
-        return infeasibility
+    if length(upperBound.b) == 0
+        return infeasible
+    elseif length(lowerBound) == 1
+        return oprimality
     else
-        return none
+        while test && iter < length(consecutivePoint)
+            iter += 1
+            solR, solL = consecutivePoint[iter]
+            nadirPoint = [min(solR.y[ind], solL.y[ind]) for ind = 1:length(solR.y)]
+
+            Ax = upperBound.A * transpose(nadirPoint)
+
+            for ind = 1:length(upperBound.b)
+                test = test && Ax[ind] <= b[ind] #Sur du <= ?
+            end
+        end
+        if test
+            return dominated
+        else
+            return none
+        end
     end
+end
+
+
 end
 
 # update upper et lower bound sets according to the new feasible subproblem
@@ -161,7 +166,7 @@ function branchAndBound(prob::Problem, assignement::Vector{Int},S::Vector{Soluti
     #Arranger pour un sous problème
     lowerBoundSub, consecutivePointSub, upperBoundSub::DualSet = computeBoundDicho(subProblem(prob, assignement, i), ϵ)
 
-    fathomed::Fathomed = whichFathomed(upperBound, S)
+    fathomed::Fathomed = whichFathomed(upperBoundSub, lowerBoundSub, S)
 
     if fathomed != dominated && fathomed != infeasible
         updateBounds!(S, consecutiveSet, lowerBoundSub)
