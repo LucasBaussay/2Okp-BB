@@ -108,6 +108,6 @@ function solve1OKP(prob::Problem)
 
     sol, lb = backtrack(prob, permList, iterLastOne, bestSolPrim, poidsRestPrim, lb, ub)
 
-    return [permList[iter] for iter = 1:prob.nbVar if sol[iter]== 1]
+    return sol[permList]
 
 end

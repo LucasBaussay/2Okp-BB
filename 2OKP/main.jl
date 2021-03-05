@@ -1,36 +1,7 @@
+import Random
 
 include("dataStruct.jl")
-include("1okp.jl")
 include("branchAndBound.jl")
-
-function weightedScalarRelax(prob::Problem, λ::Vector{Float64})
-    @assert length(λ) == prob.nbObj "Le vecteur λ ne convient pas"
-
-    obj = Vector{Float64}(undef, prob.nbVar)
-    sumLambda= sum(λ)
-    for iterVar = 1:prob.nbVar
-        obj[iterVar] = sum([λ[iter] * prob.objs[iter].profits[iterVar] for iter = 1:prob.nbObj])
-    end
-
-    return Problem(
-        1,
-        prob.nbVar,
-        [Obj(obj)],
-        prob.constraint
-    )
-end
-
-function evaluate(prob::Problem, x::Vector{Int})
-    res = zeros(Float64, prob.nbObj)
-    for iterObj = 1:prob.nbObj
-        for iter in x
-            res[iterObj] += prob.objs[iterObj].profits[iter]
-        end
-    end
-
-    return res
-
-end
 
 function firstPhase(prob::Problem, params...)
 
