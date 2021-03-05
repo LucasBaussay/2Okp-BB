@@ -1,6 +1,6 @@
 import Random
 
-@enum Fathomed none dominated infeasible optimality
+@enum Fathomed none dominance infeasibility optimality
 
 include("dataStruct.jl")
 include("branchAndBound.jl")

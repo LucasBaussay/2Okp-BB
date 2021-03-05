@@ -1,13 +1,12 @@
 
 include("1okp.jl")
 
-
+# return the λ scalarization of the problem prob
 function weightedScalarRelax(prob::Problem, λ::Vector{Float64})
     @assert length(λ) == prob.nbObj "Le vecteur λ ne convient pas"
 
     obj       = Vector{Float64}(undef, prob.nbVar)
-    sumLambda = sum(λ)
-
+    # calculate the coefs of each variable by merging all the objectives
     for iterVar = 1:prob.nbVar
         obj[iterVar] = sum([λ[iter] * prob.objs[iter].profits[iterVar] for iter = 1:prob.nbObj])
     end
@@ -20,18 +19,18 @@ function weightedScalarRelax(prob::Problem, λ::Vector{Float64})
     )
 end
 
-# return res the point associated with the solution x and the problem prob
+# return y the point associated with the solution x and the problem prob
 function evaluate(prob::Problem, x::Vector{Bool})
-    res = zeros(Float64, prob.nbObj)
+    y = zeros(Float64, prob.nbObj)
     for iterObj = 1:prob.nbObj
         for iter in 1:prob.nbVar
             if x[iter]
-                res[iterObj] += prob.objs[iterObj].profits[iter]
+                y[iterObj] += prob.objs[iterObj].profits[iter]
             end
         end
     end
 
-    return res
+    return y
 end
 
 # temporary test function
@@ -47,8 +46,8 @@ function whichFathomed(upperBound::DualSet, lowerBound::Vector{Solution}, S::Vec
     test = true
     iter = 0
 
-    if length(upperBound.b) == 0
-        return infeasible
+    if length(upperBound.b)   == 0
+        return infeasibility
     elseif length(lowerBound) == 1
         return optimality
     else
@@ -64,7 +63,7 @@ function whichFathomed(upperBound::DualSet, lowerBound::Vector{Solution}, S::Vec
             end
         end
         if test
-            return dominated
+            return dominance
         else
             return none
         end
@@ -74,7 +73,7 @@ end
 # update upper et lower bound sets according to the new feasible subproblem
 function updateBounds!(S::Vector{Solution}, consecutiveSet::Vector{Tuple{Solution, Solution}}, lowerBoundSub::Vector{Solution})
 
-    indSuppr = Vector{Int}(undef, length(consecutiveSet))
+    indSuppr       = Vector{Int}(undef, length(consecutiveSet))
     indFinIndSuppr = 0
 
     for subSol in lowerBoundSub
@@ -168,7 +167,7 @@ function branchAndBound(prob::Problem, assignment::Vector{Int}, S::Vector{Soluti
 
     fathomed::Fathomed = whichFathomed(upperBoundSub, lowerBoundSub, S, consecutiveSet)
 
-    if fathomed != dominated && fathomed != infeasible
+    if fathomed != dominance && fathomed != infeasibility
         updateBounds!(S, consecutiveSet, lowerBoundSub)
     end
     if fathomed == none
