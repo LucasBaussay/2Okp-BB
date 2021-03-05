@@ -86,7 +86,7 @@ function updateBounds!(S::Vector{Solution}, consecutiveSet::Vector{Tuple{Solutio
             end
         end
         for iter = 1:indFinIndSuppr
-            deleteat!(consecutiveSet, indSuppr[iter]-iter+1)
+            deleteat!(consecutiveSet, indSuppr[iter]-iter)
         end
         indSuppr = Vector{Int}(undef, length(consecutiveSet))
         indFinIndSuppr = 0
