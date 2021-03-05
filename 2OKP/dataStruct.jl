@@ -94,7 +94,7 @@ function subProblem(prob::Problem, assignement::Vector{Int}, iter::Int)
 
         prob.nbObj,
         prob.nbVar-iter,
-        [Obj(prob.obj[ind].profits[(iter+1):end]) for ind =1:prob.nbObjs],
+        [Obj(prob.objs[ind].profits[(iter+1):end]) for ind =1:prob.nbObj],
         Const(prob.constraint.maxWeight - actualWeight, prob.constraint.weights[(iter+1):end])
 
     )

@@ -42,8 +42,7 @@ function testBandB(P::Problem)
     print("end")
 end
 
-# return in which way the subproblem can be fathomed : infeasible, optimality, dominated
-function whichFathomed(upperBound::DualSet, lowerBound::Vector{Solution}, S::Vector{Solution}, consecutivePoint::Vector{Tuple{Solution}})
+function whichFathomed(upperBound::DualSet, lowerBound::Vector{Solution}, S::Vector{Solution}, consecutivePoint::Vector{Tuple{Solution, Solution}})
 
     test = true
     iter = 0
@@ -58,10 +57,10 @@ function whichFathomed(upperBound::DualSet, lowerBound::Vector{Solution}, S::Vec
             solR, solL = consecutivePoint[iter]
             nadirPoint = [min(solR.y[ind], solL.y[ind]) for ind = 1:length(solR.y)]
 
-            Ax = upperBound.A * transpose(nadirPoint)
+            Ax = upperBound.A * nadirPoint
 
             for ind = 1:length(upperBound.b)
-                test = test && Ax[ind] <= b[ind] #Sur du <= ?
+                test = test && Ax[ind] <= upperBound.b[ind] #Sur du <= ?
             end
         end
         if test
@@ -70,9 +69,6 @@ function whichFathomed(upperBound::DualSet, lowerBound::Vector{Solution}, S::Vec
             return none
         end
     end
-end
-
-
 end
 
 # update upper et lower bound sets according to the new feasible subproblem
@@ -101,7 +97,7 @@ function updateBounds!(S::Vector{Solution}, consecutiveSet::Vector{Tuple{Solutio
 
 end
 
-# return a tuple of the two vectors : assignements for the two subproblems
+# return a tuple of the two vectors : assignments for the two subproblems
 function newAssignments(A::Vector{Int},i::Int)
     copyA = A[1:end]
     copyA[i] = 0
@@ -109,14 +105,14 @@ function newAssignments(A::Vector{Int},i::Int)
     return copyA, A
 end
 
-function computBoundDicho(prob::Problem, params...)
+function computeBoundDicho(prob::Problem, params...)
 
     @assert length(params)==1 "The parameters must exactly one : ϵ"
 
     ϵ = params[1]
-    XSEm = []
+    XSEm = Vector{Solution}()
     consecutiveSet = Vector{Tuple{Solution, Solution}}()
-    S = []
+    S = Vector{Tuple{Solution, Solution}}()
     x1 = solve1OKP(weightedScalarRelax(prob, [1., ϵ]))
     x2 = solve1OKP(weightedScalarRelax(prob, [ϵ, 1.]))
 
@@ -165,18 +161,18 @@ function computBoundDicho(prob::Problem, params...)
 
 end
 
-function branchAndBound(prob::Problem, assignement::Vector{Int},S::Vector{Solution}, consecutiveSet::Vector{Tuple{Solution, Solution}}, i::Int = 0; ϵ::Float64 =0.01)
+function branchAndBound(prob::Problem, assignment::Vector{Int}, S::Vector{Solution}, consecutiveSet::Vector{Tuple{Solution, Solution}}, i::Int = 0; ϵ::Float64 =0.01)
 
     #Arranger pour un sous problème
-    lowerBoundSub, consecutivePointSub, upperBoundSub::DualSet = computeBoundDicho(subProblem(prob, assignement, i), ϵ)
+    lowerBoundSub, consecutivePointSub, upperBoundSub::DualSet = computeBoundDicho(subProblem(prob, assignment, i), ϵ)
 
-    fathomed::Fathomed = whichFathomed(upperBoundSub, lowerBoundSub, S)
+    fathomed::Fathomed = whichFathomed(upperBoundSub, lowerBoundSub, S, consecutiveSet)
 
     if fathomed != dominated && fathomed != infeasible
         updateBounds!(S, consecutiveSet, lowerBoundSub)
     end
     if fathomed == none
-        A0,A1 = newAssignments(assignement,i) # creating the two assignements for the subproblems : A0 is a copy, A1 == assignement
+        AO,A1 = newAssignments(assignment,i) # creating the two assignments for the subproblems : A0 is a copy, A1 == assignment
         branchAndBound(prob,A0,i+1,S) # exploring the first subproblem
         branchAndBound(prob,A1,i+1,S) # exploring the second subproblem
     end
@@ -200,10 +196,10 @@ function main_BranchandBound(prob::Problem, orderName = "Random", ϵ::Float64 = 
 
     S, consecutivePoint, weDontNeedItHere = computeBoundDicho(auxProb, ϵ)
 
-    assignement = Vector{Int}(undef, prob.nbVar)
+    assignment = Vector{Int}(undef, prob.nbVar)
     for iter=1:prob.nbVar
-        assignement[iter] = -1
+        assignment[iter] = -1
     end
 
-    branchAndBound(auxProb, assignment, S, consecutivePoint, ϵ = ϵ)
+    branchAndBound(auxProb, assignment, S, consecutivePoint, 0, ϵ = ϵ)
 end
