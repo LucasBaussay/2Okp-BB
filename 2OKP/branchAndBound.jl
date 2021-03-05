@@ -5,7 +5,6 @@ function weightedScalarRelax(prob::Problem, λ::Vector{Float64})
     @assert length(λ) == prob.nbObj "Le vecteur λ ne convient pas"
 
     obj = Vector{Float64}(undef, prob.nbVar)
-    sumLambda= sum(λ)
     for iterVar = 1:prob.nbVar
         obj[iterVar] = sum([λ[iter] * prob.objs[iter].profits[iterVar] for iter = 1:prob.nbObj])
     end
@@ -21,7 +20,7 @@ end
 function evaluate(prob::Problem, x::Vector{Bool})
     res = zeros(Float64, prob.nbObj)
     for iterObj = 1:prob.nbObj
-        for iter in 1:prob.nbVar
+        for iter = 1:prob.nbVar
             if x[iter]
                 res[iterObj] += prob.objs[iterObj].profits[iter]
             end
@@ -86,11 +85,14 @@ function updateBounds!(S::Vector{Solution}, consecutiveSet::Vector{Tuple{Solutio
                 indSuppr[indFinIndSuppr] = iter
             end
         end
+        for iter = 1:indFinIndSuppr
+            deleteat!(consecutiveSet, indSuppr[iter]-iter+1)
+        end
+        indSuppr = Vector{Int}(undef, length(consecutiveSet))
+        indFinIndSuppr = 0
     end
 
-    for iter = 1:indFinIndSuppr
-        deleteat!(consecutiveSet, indSuppr[iter]-iter)
-    end
+
 
 end
 
@@ -168,8 +170,8 @@ function branchAndBound(prob::Problem, assignment::Vector{Int}, S::Vector{Soluti
     if fathomed != dominated && fathomed != infeasible
         updateBounds!(S, consecutiveSet, lowerBoundSub)
     end
-    if fathomed == none
-        AO,A1 = newAssignments(assignment,i) # creating the two assignments for the subproblems : A0 is a copy, A1 == assignment
+    if fathomed == none && i<prob.nbVar
+        AO,A1 = newAssignments(assignment,i+1) # creating the two assignments for the subproblems : A0 is a copy, A1 == assignment
         branchAndBound(prob,A0,i+1,S) # exploring the first subproblem
         branchAndBound(prob,A1,i+1,S) # exploring the second subproblem
     end
