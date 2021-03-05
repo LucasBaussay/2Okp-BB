@@ -44,7 +44,7 @@ end
 # return the way the subproblem is fathomed : none, infeasibility, optimality, dominance
 function whichFathomed(upperBound::DualSet, lowerBound::Vector{Solution}, S::Vector{Solution}, consecutivePoint::Vector{Tuple{Solution, Solution}})
 
-    test = true
+    noNadirUnderUB = true # becomes false if we found a nadir point under the upperBound
     iter = 0
 
     if length(lowerBound) == 0 # no solutions supported
@@ -52,18 +52,22 @@ function whichFathomed(upperBound::DualSet, lowerBound::Vector{Solution}, S::Vec
     elseif length(lowerBound) == 1 # only one feasible solution
         return optimality
     else
-        while test && iter < length(consecutivePoint)
+        while noNadirUnderUB && iter < length(consecutivePoint) # going through the consecutive points
             iter += 1
-            solR, solL = consecutivePoint[iter]
-            nadirPoint = [min(solR.y[ind], solL.y[ind]) for ind = 1:length(solR.y)]
+            solR, solL = consecutivePoint[iter] # getting the two consecutive points
+            nadirPoint = [min(solR.y[ind], solL.y[ind]) for ind = 1:length(solR.y)] # constructing the nadir point
 
-            Ax = upperBound.A * nadirPoint
+            Ax = upperBound.A * nadirPoint # projection of the nadir point on the constraints of the upper bound
 
-            for ind = 1:length(upperBound.b)
-                test = test && Ax[ind] > upperBound.b[ind] #Sur du <= ?
+            # verifying that the nadir point is under each constraint of the upperBound
+            indexConstr = 1
+            while noNadirUnderUB && indexConstr < length(upperBound.b)
+                indexConstr += 1
+                noNadirUnderUB = noNadirUnderUB && Ax[ind] > upperBound.b[ind] #Sur du <= ?
             end
         end
-        if test
+        # conclusion on the type of pruning
+        if noNadirUnderUB
             return dominance
         else
             return none
