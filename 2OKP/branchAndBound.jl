@@ -210,9 +210,9 @@ function reorderVariable(prob::Problem, reorderVect::Vector{Int})
     )
 end
 
-function main_BranchandBound(prob::Problem, orderName = "Random", ϵ::Float64 = 0.01 ; verbose = false)
+function main_BranchandBound(prob::Problem, orderName = "random", ϵ::Float64 = 0.01 ; verbose = false)
 
-    permVect = Random.shuffle(1:prob.nbVar)
+    permVect = permOrder(prob, orderName)
     auxProb = reorderVariable(prob, permVect)
 
     S, consecutivePoint, weDontNeedItHere = computeBoundDicho(auxProb, ϵ, verbose = verbose)
