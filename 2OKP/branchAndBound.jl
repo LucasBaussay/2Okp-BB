@@ -133,11 +133,14 @@ function computeBoundDicho(prob::Problem, ϵ::Float64; verbose = false)
     else
         push!(S, (sol1, sol2))
         push!(XSEm, sol1, sol2)
+
+        indFunc = 1
         while length(S) != 0
+
             solR, solL = pop!(S)
             verbose && println("On étudie la paire de solution : $(solR.y) et $(solL.y)")
             λ = [solL.y[2]-solR.y[2], solR.y[1]-solL.y[1]]
-            xe = solve1OKP(weightedScalarRelax(prob, λ), verbose = verbose)
+            xe = solve1OKP(weightedScalarRelax(prob, λ), verbose = false)
 
             zxe = evaluate(prob, xe)
 
@@ -152,6 +155,8 @@ function computeBoundDicho(prob::Problem, ϵ::Float64; verbose = false)
                 verbose && println("On a rien trouvé dans cette direction")
             end
             verbose && println()
+
+            indFunc += 1
         end
     end
 

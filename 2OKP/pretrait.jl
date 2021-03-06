@@ -1,7 +1,4 @@
-include("dataStruct.jl")
-include("branchAndBound.jl")
-
-function permOrder(prob::Problem, order::String)
+function permOrder(prob::Problem, order::String = "random")
 
     @assert prob.nbObj == 2 "This problem is 20KP"
     @assert order in ("averageUtility", "bestMin", "rankSum", "random") "Unknown criteria for order the variables"

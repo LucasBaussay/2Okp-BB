@@ -9,7 +9,7 @@ function backtrack(prob::Problem, permList::Vector{Int}, iter::Int, bestSolPrim:
         return backtrack(prob, permList, iter-1, bestSolPrim, poidsRestPrim, lb, ub, nbIter+1, verbose = verbose)
     else
         poidsRest = poidsRestPrim + prob.constraint.weights[permList[iter]]
-        profitAct = lb - prob.objs[1].profits[iter]
+        profitAct = lb - prob.objs[1].profits[permList[iter]]
         ubAct = Inf
         sol = falses(prob.nbVar-iter)
 
@@ -49,10 +49,10 @@ function backtrack(prob::Problem, permList::Vector{Int}, iter::Int, bestSolPrim:
 
                 return backtrack(prob, permList, iter, bestSolPrim, poidsRestPrim, lb, ub, nbIter+1, verbose = verbose)
             else
-                return backtrack(prob, permList, iter-1, bestSolPrim, poidsRestPrim + prob.constraint.weights[iter], lb, ub, nbIter+1, verbose = verbose)
+                return backtrack(prob, permList, iter-1, bestSolPrim, poidsRestPrim + prob.constraint.weights[permList[iter]], lb, ub, nbIter+1, verbose = verbose)
             end
         else
-            return backtrack(prob, permList, iter-1, bestSolPrim, poidsRestPrim + prob.constraint.weights[iter], lb, ub, nbIter+1, verbose = verbose)
+            return backtrack(prob, permList, iter-1, bestSolPrim, poidsRestPrim + prob.constraint.weights[permList[iter]], lb, ub, nbIter+1, verbose = verbose)
         end
     end
 
@@ -114,6 +114,9 @@ function solve1OKP(prob::Problem; verbose = false)
     Backtracking
 
     """
+
+    println(bestSolPrim, lb)
+    println(permList)
 
     verbose && println("On comment le Backtracking")
 
