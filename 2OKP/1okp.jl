@@ -1,9 +1,12 @@
-function backtrack(prob::Problem, permList::Vector{Int}, iter::Int, bestSolPrim::Vector{Bool}, poidsRestPrim::Float64, lb::Float64, ub::Float64)
+function backtrack(prob::Problem, permList::Vector{Int}, iter::Int, bestSolPrim::Vector{Bool}, poidsRestPrim::Float64, lb::Float64, ub::Float64, nbIter::Int = 1; verbose = false)
     iterLastOne = 0
+
+    verbose && println("On commence le Backtrack n°$nbIter")
+
     if iter == 0 || lb == ub
         return bestSolPrim, lb
     elseif bestSolPrim[iter] == 0
-        return backtrack(prob, permList, iter-1, bestSolPrim, poidsRestPrim, lb, ub)
+        return backtrack(prob, permList, iter-1, bestSolPrim, poidsRestPrim, lb, ub, nbIter+1, verbose = verbose)
     else
         poidsRest = poidsRestPrim + prob.constraint.weights[permList[iter]]
         profitAct = lb - prob.objs[1].profits[iter]
@@ -44,21 +47,27 @@ function backtrack(prob::Problem, permList::Vector{Int}, iter::Int, bestSolPrim:
                 iter = iterLastOne
                 poidsRestPrim = poidsRest
 
-                return backtrack(prob, permList, iter, bestSolPrim, poidsRestPrim, lb, ub)
+                return backtrack(prob, permList, iter, bestSolPrim, poidsRestPrim, lb, ub, nbIter+1, verbose = verbose)
             else
-                return backtrack(prob, permList, iter-1, bestSolPrim, poidsRestPrim + prob.constraint.weights[iter], lb, ub)
+                return backtrack(prob, permList, iter-1, bestSolPrim, poidsRestPrim + prob.constraint.weights[iter], lb, ub, nbIter+1, verbose = verbose)
             end
         else
-            return backtrack(prob, permList, iter-1, bestSolPrim, poidsRestPrim + prob.constraint.weights[iter], lb, ub)
+            return backtrack(prob, permList, iter-1, bestSolPrim, poidsRestPrim + prob.constraint.weights[iter], lb, ub, nbIter+1, verbose = verbose)
         end
     end
 
 end
 
-function solve1OKP(prob::Problem)
+function solve1OKP(prob::Problem; verbose = false)
     @assert prob.nbObj == 1 "This problem is no 1OKP"
 
     permList = sortperm(prob.objs[1].profits ./ prob.constraint.weights, rev = true)
+
+    revPermList = Vector{Int}(undef, length(permList))
+
+    for iter = 1:length(permList)
+        revPermList[permList[iter]] = iter
+    end
 
     poidsRestPrim = prob.constraint.maxWeight
     bestSolPrim = zeros(Bool, prob.nbVar) #Par Objets triés
@@ -67,7 +76,7 @@ function solve1OKP(prob::Problem)
     iter = 1
     iterLastOne = 0
 
-    lb = 0
+    lb = 0.
     ub = Inf
 
     """
@@ -87,7 +96,7 @@ function solve1OKP(prob::Problem)
     if iter <= prob.nbVar
         ub = lb + (poidsRestPrim / prob.constraint.weights[permList[iter]]) * prob.objs[1].profits[permList[iter]]
     else
-        return [permList[iter] for iter = 1:prob.nbVar if bestSolPrim[iter]== 1], lb
+        return bestSolPrim[revPermList]
     end
 
     while iter <= prob.nbVar && poidsRestPrim != 0
@@ -106,14 +115,10 @@ function solve1OKP(prob::Problem)
 
     """
 
-    sol, lb = backtrack(prob, permList, iterLastOne, bestSolPrim, poidsRestPrim, lb, ub)
+    verbose && println("On comment le Backtracking")
 
-    revPermList = Vector{Int}(undef, length(permList))
+    sol, lb = backtrack(prob, permList, iterLastOne, bestSolPrim, poidsRestPrim, lb, ub, 0, verbose = verbose)
 
-    for iter = 1:length(permList)
-        revPermList[permList[iter]] = iter
-    end
-
-    return sol[permList]
+    return sol[revPermList]
 
 end
