@@ -1,6 +1,16 @@
 
 include("1okp.jl")
 
+"""
+
+    Le dernier bug (j'éspère !)
+
+    Quand on créer un sous problème avec moins de variable (B&B), si on veut étudier cette solution par rapport aux autres
+    Il faut absolument lui rajouter toutes les variables qu'on lui a enlevé, Faut vraiment être con pour avoir oublier ca
+    (Oups)
+
+"""
+
 # return the λ scalarization of the problem prob
 function weightedScalarRelax(prob::Problem, λ::Vector{Float64})
     @assert length(λ) == prob.nbObj "Le vecteur λ ne convient pas"
