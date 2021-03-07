@@ -29,7 +29,7 @@ function evaluate(prob::Problem, x::Vector{Bool})
             end
         end
     end
-
+    # the resulting point
     return y
 end
 
@@ -43,22 +43,20 @@ end
 
 # return the way the subproblem is fathomed : none, infeasibility, optimality, dominance
 function whichFathomed(upperBound::DualSet, lowerBound::Vector{Solution}, S::Vector{Solution}, consecutivePoint::Vector{Tuple{Solution, Solution}})
-
     noNadirUnderUB = true # becomes false if we found a nadir point under the upperBound
-    iter = 0
 
     if length(lowerBound) == 0 # no solutions supported
         return infeasibility
     elseif length(lowerBound) == 1 # only one feasible solution
         return optimality
     else
-        while noNadirUnderUB && iter < length(consecutivePoint) # going through the consecutive points
-            iter += 1
-            solR, solL = consecutivePoint[iter] # getting the two consecutive points
+        iterConsecPoint = 0
+        while noNadirUnderUB && iterConsecPoint < length(consecutivePoint) # going through the consecutive points
+            iterConsecPoint += 1
+            solR, solL = consecutivePoint[iterConsecPoint] # getting the two consecutive points
             nadirPoint = [min(solR.y[ind], solL.y[ind]) for ind = 1:length(solR.y)] # constructing the nadir point
-
-            Ax = upperBound.A * nadirPoint # projection of the nadir point on the constraints of the upper bound
-
+            # projection of the nadir point on the constraints of the upper bound
+            Ax = upperBound.A * nadirPoint
             # verifying that the nadir point is under each constraint of the upperBound
             indexConstr = 1
             while noNadirUnderUB && indexConstr < length(upperBound.b)
