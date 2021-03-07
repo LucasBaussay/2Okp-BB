@@ -3,6 +3,7 @@ import Random
 @enum Fathomed none dominance infeasibility optimality
 
 include("dataStruct.jl")
+include("pretrait.jl")
 include("branchAndBound.jl")
 
 function firstPhase(prob::Problem, params...)
