@@ -1,15 +1,16 @@
-function backtrack(prob::Problem, permList::Vector{Int}, iter::Int, bestSolPrim::Vector{Bool}, poidsRestPrim::Float64, lb::Float64, ub::Float64, nbIter::Int = 1; verbose = false)
+function backtrack(prob::Problem, permList::Vector{Int}, iter::Int, bestSolPrim::Vector{Bool}, profitPrim::Float64, poidsRestPrim::Float64, lb::Float64, ub::Float64; verbose = false)
     iterLastOne = 0
-
-    verbose && println("On commence le Backtrack n°$nbIter")
 
     if iter == 0 || lb == ub
         return bestSolPrim, lb
     elseif bestSolPrim[iter] == 0
-        return backtrack(prob, permList, iter-1, bestSolPrim, poidsRestPrim, lb, ub, nbIter+1, verbose = verbose)
+        return backtrack(prob, permList, iter-1, bestSolPrim, profitPrim, poidsRestPrim, lb, ub, verbose = verbose)
     else
+
+        verbose && println("On tente d'améliorer en fixant x_$(permList[iter]) à 0")
+
         poidsRest = poidsRestPrim + prob.constraint.weights[permList[iter]]
-        profitAct = lb - prob.objs[1].profits[permList[iter]]
+        profitAct = profitPrim - prob.objs[1].profits[permList[iter]]
         ubAct = Inf
         sol = falses(prob.nbVar-iter)
 
@@ -27,7 +28,13 @@ function backtrack(prob::Problem, permList::Vector{Int}, iter::Int, bestSolPrim:
         else
             ubAct = profitAct
         end
+
+        verbose && println("La valeur max du sous problème est : $ubAct et la meilleure solution actuelle : $lb")
+
         if ubAct > lb
+
+            verbose && println("Le sous problème est peut-être améliorant ! ")
+
             while iterSub <= prob.nbVar && poidsRest != 0
                 if prob.constraint.weights[permList[iterSub]] <= poidsRest
                     sol[iterSub - iter] = 1
@@ -40,19 +47,24 @@ function backtrack(prob::Problem, permList::Vector{Int}, iter::Int, bestSolPrim:
 
             if profitAct > lb
 
-                ub = ubAct
+                verbose && println("Youpi on améliore : de $lb à $profitAct")
+
                 lb = profitAct
                 bestSolPrim[iter] = 0
                 bestSolPrim[iter+1:end] = sol[1:end]
                 iter = iterLastOne
                 poidsRestPrim = poidsRest
 
-                return backtrack(prob, permList, iter, bestSolPrim, poidsRestPrim, lb, ub, nbIter+1, verbose = verbose)
+                verbose && println()
+                return backtrack(prob, permList, iter, bestSolPrim, lb, poidsRestPrim, lb, ub, verbose = verbose)
             else
-                return backtrack(prob, permList, iter-1, bestSolPrim, poidsRestPrim + prob.constraint.weights[permList[iter]], lb, ub, nbIter+1, verbose = verbose)
+                verbose && println("Coup dur, on continue le Backtrack")
+                verbose && println()
+                return backtrack(prob, permList, iter-1, bestSolPrim, profitPrim - prob.objs[1].profits[permList[iter]], poidsRestPrim + prob.constraint.weights[permList[iter]], lb, ub, verbose = verbose)
             end
         else
-            return backtrack(prob, permList, iter-1, bestSolPrim, poidsRestPrim + prob.constraint.weights[permList[iter]], lb, ub, nbIter+1, verbose = verbose)
+            verbose && println()
+            return backtrack(prob, permList, iter-1, bestSolPrim, profitPrim - prob.objs[1].profits[permList[iter]], poidsRestPrim + prob.constraint.weights[permList[iter]], lb, ub, verbose = verbose)
         end
     end
 
@@ -120,8 +132,8 @@ function solve1OKP(prob::Problem; verbose = false)
 
     verbose && println("On comment le Backtracking")
 
-    sol, lb = backtrack(prob, permList, iterLastOne, bestSolPrim, poidsRestPrim, lb, ub, 0, verbose = verbose)
+    sol, lb = backtrack(prob, permList, iterLastOne, bestSolPrim, lb, poidsRestPrim, lb, ub, verbose = verbose)
 
-    return sol[revPermList]
+    return Solution(sol[revPermList], [lb])
 
 end
