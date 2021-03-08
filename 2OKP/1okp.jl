@@ -87,6 +87,7 @@ end
     @assignmentProfit : the sum of the profits of the variables assigned to one
 
     @bestSolPrim : current best primal solution (indexed on ordered variables) : bestSolPrim[1] targets the first best variable.
+    @iterLastOne : index (ordered) of the last variable assigned to one in @bestSolPrim
 """
 function solve1OKP(prob::Problem, assignment::Vector{Int} = Vector{Int}(), indFinAssignment::Int = 0, assignmentWeight::Float64 = 0., assignmentProfit::Float64 = 0.; verbose = false)
     @assert prob.nbObj == 1 "This problem is no 1OKP"
@@ -117,17 +118,17 @@ function solve1OKP(prob::Problem, assignment::Vector{Int} = Vector{Int}(), indFi
     bestSolPrim = zeros(Bool, prob.nbVar)
     # construction of bestSolPrim
     iterLastOne = 0 # index (ordered) of the last variable assigned to one
-    for iter = 1:prob.nbVar # iterating on variables non ordered
-        var = permList[iter]
+    for iter = 1:prob.nbVar # iterating on variables (non ordered)
+        var = permList[iter] # index of var (ordered)
         if assignment[var] != -1 # if the variable is assigned
             bestSolPrim[iter] = assignment[var] # the current sol assign this var to the same value
             if assignment[var] == 1 # the variable is assigned to one
-                iterLastOne = iter # index (ordered) of the last variable assigned to one
+                iterLastOne = var
             end
         end
     end
 
-    iter = indFinAssignment + 1 # index of the first non assigned variable
+    iter = indFinAssignment + 1 # index (non ordered) of the first non assigned variable
 
     lb = 0. + assignmentProfit # profit we are sure to make because the solution is feasible
     ub = Inf
@@ -143,9 +144,9 @@ function solve1OKP(prob::Problem, assignment::Vector{Int} = Vector{Int}(), indFi
     while iter <= prob.nbVar && prob.constraint.weights[permList[iter]] <= poidsRestPrim
         var = permList[iter] # index of the variable (non ordered)
         bestSolPrim[iter] = 1 # we put the variable to one in the current solution
-        poidsRestPrim -= prob.constraint.weights[var] # we substract the weight of the variable that we assigned to one 
+        poidsRestPrim -= prob.constraint.weights[var] # we substract the weight (non ordered) of the variable that we assigned to one
         lb += prob.objs[1].profits[var] # we add to the primal bound the profit of var
-        iterLastOne = iter # update iterLastOne
+        iterLastOne = var # update iterLastOne
         iter += 1
     end
 
@@ -161,11 +162,12 @@ function solve1OKP(prob::Problem, assignment::Vector{Int} = Vector{Int}(), indFi
     # goal : we finish to go through variables and try to put as many to one.
     # iterating on remaining variables (non ordered), we stop if we don't have any space remaining in the bag
     while iter <= prob.nbVar && poidsRestPrim > 0
-        if prob.constraint.weights[permList[iter]] <= poidsRestPrim # if the current var feets in the bag
+        var = permList[iter] # index of the variable (non ordered)
+        if prob.constraint.weights[var] <= poidsRestPrim # if the current var feets in the bag
             bestSolPrim[iter] = 1 # assigning the var to one
-            poidsRestPrim -= prob.constraint.weights[permList[iter]] # updating the remaining space in the bag
-            lb += prob.objs[1].profits[permList[iter]] # updating the lower bound because we added a variable
-            iterLastOne = iter # updating iterLastOne
+            poidsRestPrim -= prob.constraint.weights[var] # updating the remaining space in the bag
+            lb += prob.objs[1].profits[var] # updating the lower bound because we added a variable
+            iterLastOne = var # updating iterLastOne
         end
         iter += 1
     end
@@ -175,10 +177,11 @@ function solve1OKP(prob::Problem, assignment::Vector{Int} = Vector{Int}(), indFi
     Backtracking
 
     """
-
+    
+    indFinAssignment
     verbose && println("On commence le Backtracking")
 
-    if iterLastOne > indFinAssignment
+    if iterLastOne > indFinAssignment # 
         sol, lb = backtrack(prob, indFinAssignment, permList, iterLastOne, bestSolPrim, lb, poidsRestPrim, lb, ub, verbose = verbose)
 
         return Solution(sol[revPermList], [lb])
