@@ -82,21 +82,9 @@ function parser(fname::String)
     )
 end
 
-function subProblem(prob::Problem, assignement::Vector{Int}, iter::Int)
-
-    actualWeight = 0.
-
-    for ind = 1:iter
-        actualWeight += assignement[ind] * prob.constraint.weights[ind]
-    end
-
-    return Problem(
-
-        prob.nbObj,
-        prob.nbVar-iter,
-        [Obj(prob.objs[ind].profits[(iter+1):end]) for ind =1:prob.nbObj],
-        Const(prob.constraint.maxWeight - actualWeight, prob.constraint.weights[(iter+1):end])
-
+function Solution()
+    return Solution(
+        Vector{Bool}(),
+        Vector{Float64}()
     )
-
 end

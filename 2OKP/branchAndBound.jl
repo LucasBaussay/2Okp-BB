@@ -41,7 +41,7 @@ function evaluate(prob::Problem, x::Vector{Bool})
     end
 
     # the resulting point
-    return y
+    return Solution(x, y)
 end
 
 # temporary test function
@@ -129,7 +129,7 @@ function computeBoundDicho(prob::Problem, assignment::Vector{Int}, indAssignment
     XSEm = Vector{Solution}()
     consecutiveSet = Vector{Tuple{Solution, Solution}}()
     S = Vector{Tuple{Solution, Solution}}()
-    #J'en suis là pour le moment
+
     sol1 = solve1OKP(weightedScalarRelax(prob, [1., ϵ]), assignment, indAssignment, assignmentWeight, sum([1., ϵ] .* assignmentProfit), verbose = verbose)
     sol2 = solve1OKP(weightedScalarRelax(prob, [ϵ, 1.]), assignment, indAssignment, assignmentWeight, sum([ϵ, 1.] .* assignmentProfit), verbose = verbose)
 
@@ -205,7 +205,7 @@ function branchAndBound(prob::Problem, assignment::Vector{Int}, assignmentWeight
     if fathomed != dominance && fathomed != infeasibility
         updateBounds!(S, consecutiveSet, lowerBoundSub)
     end
-    if fathomed == none && i<prob.nbVar
+    if fathomed == none && indAssignment<prob.nbVar
         A0, A1 = newAssignments(assignment,indAssignment+1) # creating the two assignments for the subproblems : A0 is a copy, A1 == assignment
         verbose && println("Branch and Bound sur la variable $(indAssignment+1), on la fixe à 0")
         branchAndBound(prob, A0, assignmentWeight, assignmentProfit, S, consecutiveSet, indAssignment+1, ϵ, verbose = verbose) # exploring the first subproblem
@@ -240,16 +240,16 @@ function main_BranchandBound(prob::Problem, orderName = "random", ϵ::Float64 = 
     permVect, revPermVect = permOrder(prob, orderName)
     auxProb = reorderVariable(prob, permVect)
 
-    S, consecutivePoint, weDontNeedItHere = computeBoundDicho(auxProb, ϵ, verbose = verbose)
+    S, consecutivePoint, weDontNeedItHere = computeBoundDicho(auxProb, Vector{Int}(), 0, 0., zeros(Float64, prob.nbObj), ϵ, verbose = verbose)
 
     assignment = Vector{Int}(undef, prob.nbVar)
     for iter=1:prob.nbVar
         assignment[iter] = -1
     end
 
-    branchAndBound(auxProb, assignment, S, consecutivePoint, 0, ϵ, verbose = verbose)
+    branchAndBound(auxProb, assignment, 0., zeros(Float64, prob.nbObj),  S, consecutivePoint, 0, ϵ, verbose = verbose)
 
-    broadcast!(sol->Solution(sol.x[revPerm], sol.y), S)
+    S = broadcast(sol->Solution(sol.x[revPermVect], sol.y), S)
 
     return S
 end
