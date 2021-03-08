@@ -7,7 +7,7 @@ include("1okp.jl")
 
     Quand on créer un sous problème avec moins de variable (B&B), si on veut étudier cette solution par rapport aux autres
     Il faut absolument lui rajouter toutes les variables qu'on lui a enlevé, Faut vraiment être con pour avoir oublier ca
-    (Oups)
+    (Oups !)
 
 """
 
@@ -29,8 +29,14 @@ function weightedScalarRelax(prob::Problem, λ::Vector{Float64})
     )
 end
 
+"""
+
+    Ici c'est super Brouillon, cette foction ne va plus marcher mais j'ai eu une meilleure idée, donc je laisse ca en Plan et je reviens dessus dès que j'ai finis mes améliorations !
+
+"""
+
 # return y the point associated with the solution x and the problem prob
-function evaluate(prob::Problem, x::Vector{Bool})
+function evaluate(mainProb::Problem, prob::Problem, assignment::Vector{Int}, indFinAssignment::Int, x::Vector{Bool})
     y = zeros(Float64, prob.nbObj)
     for iterObj = 1:prob.nbObj
         for iter = 1:prob.nbVar
@@ -38,7 +44,13 @@ function evaluate(prob::Problem, x::Vector{Bool})
                 y[iterObj] += prob.objs[iterObj].profits[iter]
             end
         end
+        for iter = 1:indFinAssignment-1
+            if assignment[iter] == 1
+                y[iterObj] += mainProb.objs[iterObj].profits[iter]
+            end
+        end
     end
+
     # the resulting point
     return y
 end
@@ -117,16 +129,23 @@ function newAssignments(A::Vector{Int},i::Int)
     return copyA, A
 end
 
-function computeBoundDicho(prob::Problem, ϵ::Float64; verbose = false)
+"""
+
+    En cours de Travaux
+
+"""
+
+function computeBoundDicho(prob::Problem, assignment::Vector{Int}, indAssignment::Int, ϵ::Float64; verbose = false)
 
     XSEm = Vector{Solution}()
     consecutiveSet = Vector{Tuple{Solution, Solution}}()
     S = Vector{Tuple{Solution, Solution}}()
-    x1 = solve1OKP(weightedScalarRelax(prob, [1., ϵ]), verbose = verbose)
-    x2 = solve1OKP(weightedScalarRelax(prob, [ϵ, 1.]), verbose = verbose)
+    #J'en suis là pour le moment
+    x1 = solve1OKP(weightedScalarRelax(prob, [1., ϵ]), assignment, indAssignment, verbose = verbose)
+    x2 = solve1OKP(weightedScalarRelax(prob, [ϵ, 1.]), assignment, indAssignment, verbose = verbose)
 
-    zx1 = evaluate(prob, x1)
-    zx2 = evaluate(prob, x2)
+    zx1 = evaluate(prob, assignment, x1)
+    zx2 = evaluate(prob, assignment, x2)
 
     max1 = zx1[1]
     max2 = zx2[2]
@@ -195,7 +214,7 @@ end
 function branchAndBound(prob::Problem, assignment::Vector{Int}, S::Vector{Solution}, consecutiveSet::Vector{Tuple{Solution, Solution}}, i::Int = 0, ϵ::Float64 =0.01; verbose = false)
 
     #Arranger pour un sous problème
-    lowerBoundSub, consecutivePointSub, upperBoundSub = computeBoundDicho(subProblem(prob, assignment, i), ϵ, verbose = verbose)
+    lowerBoundSub, consecutivePointSub, upperBoundSub = computeBoundDicho(subProblem(prob, assignment, i), assignment, ϵ, verbose = verbose)
 
     fathomed::Fathomed = whichFathomed(upperBoundSub, lowerBoundSub, S, consecutiveSet)
 
