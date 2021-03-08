@@ -29,24 +29,13 @@ function weightedScalarRelax(prob::Problem, λ::Vector{Float64})
     )
 end
 
-"""
-
-    Ici c'est super Brouillon, cette foction ne va plus marcher mais j'ai eu une meilleure idée, donc je laisse ca en Plan et je reviens dessus dès que j'ai finis mes améliorations !
-
-"""
-
 # return y the point associated with the solution x and the problem prob
-function evaluate(mainProb::Problem, prob::Problem, assignment::Vector{Int}, indFinAssignment::Int, x::Vector{Bool})
+function evaluate(prob::Problem, x::Vector{Bool})
     y = zeros(Float64, prob.nbObj)
     for iterObj = 1:prob.nbObj
         for iter = 1:prob.nbVar
             if x[iter]
                 y[iterObj] += prob.objs[iterObj].profits[iter]
-            end
-        end
-        for iter = 1:indFinAssignment-1
-            if assignment[iter] == 1
-                y[iterObj] += mainProb.objs[iterObj].profits[iter]
             end
         end
     end
@@ -135,27 +124,24 @@ end
 
 """
 
-function computeBoundDicho(prob::Problem, assignment::Vector{Int}, indAssignment::Int, ϵ::Float64; verbose = false)
+function computeBoundDicho(prob::Problem, assignment::Vector{Int}, indAssignment::Int, assignmentWeight::Float64, assignmentProfit::Vector{Float64}, ϵ::Float64; verbose = false)
 
     XSEm = Vector{Solution}()
     consecutiveSet = Vector{Tuple{Solution, Solution}}()
     S = Vector{Tuple{Solution, Solution}}()
     #J'en suis là pour le moment
-    x1 = solve1OKP(weightedScalarRelax(prob, [1., ϵ]), assignment, indAssignment, verbose = verbose)
-    x2 = solve1OKP(weightedScalarRelax(prob, [ϵ, 1.]), assignment, indAssignment, verbose = verbose)
+    sol1 = solve1OKP(weightedScalarRelax(prob, [1., ϵ]), assignment, indAssignment, assignmentWeight, sum([1., ϵ] .* assignmentProfit), verbose = verbose)
+    sol2 = solve1OKP(weightedScalarRelax(prob, [ϵ, 1.]), assignment, indAssignment, assignmentWeight, sum([ϵ, 1.] .* assignmentProfit), verbose = verbose)
 
-    zx1 = evaluate(prob, assignment, x1)
-    zx2 = evaluate(prob, assignment, x2)
+    sol1 = evaluate(prob, sol1.x)
+    sol2 = evaluate(prob, sol2.x)
 
-    max1 = zx1[1]
-    max2 = zx2[2]
-
-    sol1 = Solution(x1, zx1)
-    sol2 = Solution(x2, zx2)
+    max1 = sol1.y[1]
+    max2 = sol2.y[2]
 
     verbose && println("On créer les solution lexico : $(sol1.y) et $(sol2.y)")
 
-    if zx1 == zx2
+    if sol1.y == sol2.y
         push!(XSEm, sol1)
     else
         push!(S, (sol1, sol2))
@@ -167,11 +153,9 @@ function computeBoundDicho(prob::Problem, assignment::Vector{Int}, indAssignment
             solR, solL = pop!(S)
             verbose && println("On étudie la paire de solution : $(solR.y) et $(solL.y)")
             λ = [solL.y[2]-solR.y[2], solR.y[1]-solL.y[1]]
-            xe = solve1OKP(weightedScalarRelax(prob, λ), verbose = false)
+            solE = solve1OKP(weightedScalarRelax(prob, λ), assignment, indAssignment, assignmentWeight, sum(λ .* assignmentProfit), verbose = false)
 
-            zxe = evaluate(prob, xe)
-
-            solE = Solution(xe, zxe)
+            solE = evaluate(prob, solE.x)
 
             if sum(λ .* solE.y) > sum(λ .* solR.y)
                 push!(XSEm, solE)
@@ -211,10 +195,10 @@ function computeBoundDicho(prob::Problem, assignment::Vector{Int}, indAssignment
 
 end
 
-function branchAndBound(prob::Problem, assignment::Vector{Int}, S::Vector{Solution}, consecutiveSet::Vector{Tuple{Solution, Solution}}, i::Int = 0, ϵ::Float64 =0.01; verbose = false)
+function branchAndBound(prob::Problem, assignment::Vector{Int}, assignmentWeight::Float64, assignmentProfit::Vector{Float64}, S::Vector{Solution}, consecutiveSet::Vector{Tuple{Solution, Solution}}, indAssignment::Int = 0, ϵ::Float64 =0.01; verbose = false)
 
     #Arranger pour un sous problème
-    lowerBoundSub, consecutivePointSub, upperBoundSub = computeBoundDicho(subProblem(prob, assignment, i), assignment, ϵ, verbose = verbose)
+    lowerBoundSub, consecutivePointSub, upperBoundSub = computeBoundDicho(prob, assignment, indAssignment, assignmentWeight, assignmentProfit, ϵ, verbose = verbose)
 
     fathomed::Fathomed = whichFathomed(upperBoundSub, lowerBoundSub, S, consecutiveSet)
 
@@ -222,12 +206,15 @@ function branchAndBound(prob::Problem, assignment::Vector{Int}, S::Vector{Soluti
         updateBounds!(S, consecutiveSet, lowerBoundSub)
     end
     if fathomed == none && i<prob.nbVar
-        A0, A1 = newAssignments(assignment,i+1) # creating the two assignments for the subproblems : A0 is a copy, A1 == assignment
-        verbose && println("Branch and Bound sur la variable $(i+1), on la fixe à 0")
-        branchAndBound(prob,A0, S, consecutiveSet, i+1, ϵ, verbose = verbose) # exploring the first subproblem
+        A0, A1 = newAssignments(assignment,indAssignment+1) # creating the two assignments for the subproblems : A0 is a copy, A1 == assignment
+        verbose && println("Branch and Bound sur la variable $(indAssignment+1), on la fixe à 0")
+        branchAndBound(prob, A0, assignmentWeight, assignmentProfit, S, consecutiveSet, indAssignment+1, ϵ, verbose = verbose) # exploring the first subproblem
         verbose && println()
         verbose && println("Branch and Bound sur la variable $(i+1), on la fixe à 1")
-        branchAndBound(prob, A1, S, consecutiveSet, i+1, ϵ, verbose = verbose) # exploring the second subproblem
+
+        variableProfit = broadcast(obj->obj.profits[indAssignment+1], prob.objs)
+
+        branchAndBound(prob, A1, assignmentWeight + prob.constraint.weights[indAssignment+1], assignmentProfit + variableProfit, S, consecutiveSet, indAssignment+1, ϵ, verbose = verbose) # exploring the second subproblem
     end
 end
 
@@ -242,9 +229,15 @@ function reorderVariable(prob::Problem, reorderVect::Vector{Int})
     )
 end
 
+"""
+
+    Attention à l'ordre des variables !
+
+"""
+
 function main_BranchandBound(prob::Problem, orderName = "random", ϵ::Float64 = 0.01 ; verbose = false)
 
-    permVect = permOrder(prob, orderName)
+    permVect, revPermVect = permOrder(prob, orderName)
     auxProb = reorderVariable(prob, permVect)
 
     S, consecutivePoint, weDontNeedItHere = computeBoundDicho(auxProb, ϵ, verbose = verbose)
@@ -255,6 +248,8 @@ function main_BranchandBound(prob::Problem, orderName = "random", ϵ::Float64 = 
     end
 
     branchAndBound(auxProb, assignment, S, consecutivePoint, 0, ϵ, verbose = verbose)
+
+    broadcast!(sol->Solution(sol.x[revPerm], sol.y), S)
 
     return S
 end

@@ -43,7 +43,11 @@ function permOrder(prob::Problem, order::String = "random")
         perm = Random.shuffle(1:prob.nbVar)
     end
 
-    return(perm)
+    revPerm = Vector{Int}(undef, prob.nbVar)
+    for iter = 1:prob.nbVar
+        revPerm[perm[iter]] = iter
+
+    return(perm, revPerm)
 
 end
 
