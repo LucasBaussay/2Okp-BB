@@ -358,8 +358,6 @@ function solve1OKPAux(prob::Problem, assignment::Vector{Int}, indEndAssignment::
     A SUPPRIMER LE EXIT !!!
     """
 
-    exit()
-
     if iterLastOne >= 1 # we'll begin the backtracking after the assignment
         sol, lb = backtrack(prob, assignment, indEndAssignment, p, revP, iterLastOne, bestSolPrim, lb, weightRemaining, lb, ub, verbose = verbose)
         return reconstructSuperSolution(Solution(sol[revP], [lb]), assignment, indEndAssignment, assignmentProfit)
@@ -455,18 +453,18 @@ function backtrackJules(prob::Problem, p::Vector{Int}, revP::Vector{Int}, indexO
         verbose && println("On tente d'améliorer en fixant x_$(p[indexOnOrdered]) à 0")
 
         # GOAL : improve current solution by assigning the variable p[indexOnOrdered] to zero.
-        sol = falses(prob.nbVar-indexOnOrdered)
+        sol = falses(prob.nbVar-indexOnOrdered) # sol keep track of the current solution we are building
         currentWeightRemaining = weightRemaining + prob.constraint.weights[p[indexOnOrdered]] # because we took an item out of the bag
         currentProfit = currentLB - prob.objs[1].profits[p[indexOnOrdered]]
         currentUB = Inf
 
         # GOAL : force the next variables (ordered). This will help us calculate a new upper bound.
         # we stop when the next item can't fit in the bag
-        indexBrokenOV = indexOnOrdered+1
+        indexBrokenOV = indexOnOrdered+1 # the item indexOnOrdered has to stay assigned to zero
         while indexBrokenOV <= prob.nbVar && prob.constraint.weights[p[indexBrokenOV]] <= currentWeightRemaining
-            sol[indexBrokenOV - indexOnOrdered] = 1
-            currentWeightRemaining -= prob.constraint.weights[p[indexBrokenOV]]
-            currentProfit += prob.objs[1].profits[p[indexBrokenOV]]
+            sol[indexBrokenOV - indexOnOrdered] = 1 # we assign the item to one
+            currentWeightRemaining -= prob.constraint.weights[p[indexBrokenOV]] # the remaining weight decreases 
+            currentProfit += prob.objs[1].profits[p[indexBrokenOV]] # the profit increases
             iterLastOne = indexBrokenOV
             indexBrokenOV += 1
         end
@@ -488,9 +486,9 @@ function backtrackJules(prob::Problem, p::Vector{Int}, revP::Vector{Int}, indexO
             # GOAL : Calculate the current LowerBound by forcing the rest of the items that fit in the bag to one.
             while indexBrokenOV <= prob.nbVar && currentWeightRemaining != 0
                 if prob.constraint.weights[p[indexBrokenOV]] <= currentWeightRemaining
-                    sol[indexBrokenOV - indexOnOrdered] = 1
-                    currentWeightRemaining -= prob.constraint.weights[p[indexBrokenOV]]
-                    currentProfit += prob.objs[1].profits[p[indexBrokenOV]]
+                    sol[indexBrokenOV - indexOnOrdered] = 1 # the item is set to one
+                    currentWeightRemaining -= prob.constraint.weights[p[indexBrokenOV]] # the remaining weight decreases 
+                    currentProfit += prob.objs[1].profits[p[indexBrokenOV]] # the profit increases
                     iterLastOne = indexBrokenOV
                 end
                 indexBrokenOV += 1
@@ -504,20 +502,27 @@ function backtrackJules(prob::Problem, p::Vector{Int}, revP::Vector{Int}, indexO
 
                 lb = currentProfit # updating lb
                 bestSolPrim[indexOnOrdered] = 0 # putting indexOnOrdered item to zero was a good choice, so we update bestSolPrim accordingly
-                bestSolPrim[indexOnOrdered+1:end] = sol[1:end]
+                bestSolPrim[indexOnOrdered+1:end] = sol[1:end] # bestSolPrim copy the solution saved in the vector sol
                 indexOnOrdered = iterLastOne
-                weightRemaining = currentPoidsRest
+                weightRemaining = currentWeightRemaining
 
                 verbose && println()
+
+                # we start a new backtrack, starting from the last one value
                 return backtrackJules(prob, p, revP, indexOnOrdered, bestSolPrim, lb, weightRemaining, lb, ub, verbose = verbose)
-            else
-                verbose && println("Coup dur, on continue le backtrackJules")
-                verbose && println()
-                return backtrackJules(prob, p, revP, indexOnOrdered-1, bestSolPrim, currentLB - prob.objs[1].profits[p[indexOnOrdered]], weightRemaining + prob.constraint.weights[p[indexOnOrdered]], lb, ub, verbose = verbose)
+            else # the new solution is not better
+                verbose && println("Coup dur, on continue le backtrackJules\n")
+                # we free the variable indexOnOrdered, so the lb and weightRemaining are updated
+                newCurrentLB = currentLB - prob.objs[1].profits[p[indexOnOrdered]]
+                newWeightRemaining = weightRemaining + prob.constraint.weights[p[indexOnOrdered]]
+                return backtrackJules(prob, p, revP, indexOnOrdered-1, bestSolPrim, newCurrentLB, newWeightRemaining, lb, ub, verbose = verbose)
             end
-        else
+        else # there is no way the new solution can be better than the old one
             verbose && println()
-            return backtrackJules(prob, p, revP, indexOnOrdered-1, bestSolPrim, currentLB - prob.objs[1].profits[p[indexOnOrdered]], weightRemaining + prob.constraint.weights[p[indexOnOrdered]], lb, ub, verbose = verbose)
+            # we free the variable indexOnOrdered, so the lb and weightRemaining are updated
+            newCurrentLB = currentLB - prob.objs[1].profits[p[indexOnOrdered]]
+            newWeightRemaining = weightRemaining + prob.constraint.weights[p[indexOnOrdered]]
+            return backtrackJules(prob, p, revP, indexOnOrdered-1, bestSolPrim, newCurrentLB, newWeightRemaining, lb, ub, verbose = verbose)
         end
     end
 end
