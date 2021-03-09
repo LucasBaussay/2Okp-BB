@@ -15,7 +15,7 @@ include("1okp.jl")
 function weightedScalarRelax(prob::Problem, λ::Vector{Float64})
     @assert length(λ) == prob.nbObj "Le vecteur λ ne convient pas"
 
-    obj       = Vector{Float64}(undef, prob.nbVar)
+    obj = Vector{Float64}(undef, prob.nbVar)
     # calculate the coefs of each variable by merging all the objectives
     for iterVar = 1:prob.nbVar
         obj[iterVar] = sum([λ[iter] * prob.objs[iter].profits[iterVar] for iter = 1:prob.nbObj])
@@ -42,14 +42,6 @@ function evaluate(prob::Problem, x::Vector{Bool})
 
     # the resulting point
     return Solution(x, y)
-end
-
-# temporary test function
-function testBandB(P::Problem)
-    print(P)
-    A = [-1,-1,-1]
-    branchAndBound(P,A,1,[0])
-    print("end")
 end
 
 # return the way the subproblem is fathomed : none, infeasibility, optimality, dominance

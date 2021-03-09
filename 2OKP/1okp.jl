@@ -544,3 +544,7 @@ function backtrackJules(prob::Problem, p::Vector{Int}, revP::Vector{Int}, indexO
         end
     end
 end
+
+function branchAndBoundJules(prob::Problem, p::Vector{Int}, revP::Vector{Int}, indexOnOrdered::Int, bestSolPrim::Vector{Bool}, currentLB::Float64, weightRemaining::Float64, lb::Float64, ub::Float64; verbose = false)
+    
+end
