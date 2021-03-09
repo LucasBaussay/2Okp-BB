@@ -18,7 +18,6 @@
     @lb : best lower bound
     @ub : best upper bound
 """
-
 function backtrack(prob::Problem, assignment::Vector{Int}, indEndAssignment::Int, permList::Vector{Int}, revPermList::Vector{Int}, iter::Int, bestSolPrim::Vector{Bool}, currentLB::Float64, poidsRestPrim::Float64, lb::Float64, ub::Float64; verbose = false)
 
     if iter == indEndAssignment || lb == ub # stopping rule, end of study or optimality
@@ -219,6 +218,9 @@ end
 
 """
 
+"""
+    returns the inverse permutation of the given permutation vector
+"""
 function revPerm(p::Vector{Int})
     revP = Vector{Int}(undef, length(p))
     for iter = 1:length(p)
@@ -227,7 +229,9 @@ function revPerm(p::Vector{Int})
     return revP
 end
 
-# construct and returns the subproblem associated with the given problem and assignment
+"""
+    construct and returns the subproblem associated with the given problem and assignment
+"""
 function createSubProblem(prob::Problem, assignment::Vector{Int}, indEndAssignment::Int)
     newNbVars = prob.nbVar - indEndAssignment # new number of variables
     newObjs = Vector{Obj}(undef, prob.nbObj) # new objectives
@@ -286,7 +290,6 @@ function createSubProblem(prob::Problem, assignment::Vector{Int}, indEndAssignme
     @iterLastOne : index (ordered) of the last variable assigned to one in @bestSolPrim
     @indexFirstNotAssignedOV : index (ordered) of the first variable not assigned
 """
-
 function solve1OKPAux(prob::Problem, assignment::Vector{Int}, indEndAssignment::Int = 0, assignmentWeight::Float64 = 0., assignmentProfit::Float64 = 0.; verbose = false)
     # permutation list sorting the variables. Beginning with the best ones, ending with worsts.
     # usage : p[1] gives the index of the first best variable
@@ -365,7 +368,9 @@ function solve1OKPAux(prob::Problem, assignment::Vector{Int}, indEndAssignment::
     end
 end
 
-# returns the solution of the initial super problem, from a given solution and assignment for a subProblem
+"""
+    returns the solution of the initial super problem, from a given solution and assignment for a subProblem
+"""
 function reconstructSuperSolution(solution::Solution, assignment::Vector{Int}, indEndAssignment::Int, assignmentProfit::Float64)
     if indEndAssignment != 0
         nbVarsInSuperP = length(solution.x) + indEndAssignment
@@ -397,7 +402,6 @@ end
     @assignmentWeight : the sum of the weights of the variables assigned to one
     @assignmentProfit : the sum of the profits of the variables assigned to one
 """
-
 function solve1OKPMain(prob::Problem, assignment::Vector{Int} = Vector{Int}(), indEndAssignment::Int = 0, assignmentWeight::Float64 = 0., assignmentProfit::Float64 = 0.; verbose = false)
     @assert prob.nbObj == 1 "This problem is no 1OKP"
 
@@ -439,7 +443,6 @@ end
     @lb : best lower bound
     @ub : best upper bound
 """
-
 function backtrackJules(prob::Problem, p::Vector{Int}, revP::Vector{Int}, indexOnOrdered::Int, bestSolPrim::Vector{Bool}, currentLB::Float64, weightRemaining::Float64, lb::Float64, ub::Float64; verbose = false)
 
     if indexOnOrdered == 0 || lb == ub # stopping rule, end of study or optimality
@@ -512,5 +515,4 @@ function backtrackJules(prob::Problem, p::Vector{Int}, revP::Vector{Int}, indexO
             return backtrackJules(prob, p, revP, indexOnOrdered-1, bestSolPrim, currentLB - prob.objs[1].profits[p[indexOnOrdered]], weightRemaining + prob.constraint.weights[p[indexOnOrdered]], lb, ub, verbose = verbose)
         end
     end
-
 end
