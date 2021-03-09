@@ -232,7 +232,8 @@ end
 """
     construct and returns the subproblem associated with the given problem and assignment
 """
-function createSubProblem(prob::Problem, assignment::Vector{Int}, indEndAssignment::Int)
+function createSubProblem(prob::Problem, assignment::Vector{Int}, indEndAssignment::Int; verbose = false)
+    verbose && println("[createSubProblem]")
     newNbVars = prob.nbVar - indEndAssignment # new number of variables
     newObjs = Vector{Obj}(undef, prob.nbObj) # new objectives
     for indexObj in 1:length(prob.objs) # going through objectives
@@ -255,8 +256,9 @@ function createSubProblem(prob::Problem, assignment::Vector{Int}, indEndAssignme
 
     # creation of the subproblem
     subProb = Problem(prob.nbObj,newNbVars,newObjs,newConstr)
-
+    verbose && println("[END - createSubProblem]")
     return subProb
+end
 
 """
     solve1OKPAux(prob::Problem, assignment::Vector{Int}, indEndAssignment::Int = 0, assignmentWeight::Float64 = 0., assignmentProfit::Float64 = 0.; verbose = false)
@@ -291,6 +293,7 @@ function createSubProblem(prob::Problem, assignment::Vector{Int}, indEndAssignme
     @indexFirstNotAssignedOV : index (ordered) of the first variable not assigned
 """
 function solve1OKPAux(prob::Problem, assignment::Vector{Int}, indEndAssignment::Int = 0, assignmentWeight::Float64 = 0., assignmentProfit::Float64 = 0.; verbose = false)
+    verbose && println("[solve1OKPMain]")
     # permutation list sorting the variables. Beginning with the best ones, ending with worsts.
     # usage : p[1] gives the index of the first best variable
     p = sortperm(prob.objs[1].profits ./ prob.constraint.weights, rev = true)
@@ -328,7 +331,8 @@ function solve1OKPAux(prob::Problem, assignment::Vector{Int}, indEndAssignment::
         ub = lb + (weightRemaining / prob.constraint.weights[p[indexFirstNotAssignedOV]]) * prob.objs[1].profits[p[indexFirstNotAssignedOV]]
     else # all the variables are assigned to one
         # bestSolPrim is optimal
-        return reconstructSuperSolution(Solution(bestSolPrim[revP], [lb]), assignment, indEndAssignment, assignmentProfit)
+        verbose && println("[END - solve1OKPAux]")
+        return reconstructSuperSolution(Solution(bestSolPrim[revP], [lb]), assignment, indEndAssignment, assignmentProfit, verbose=verbose)
     end
 
     # GOAL : we finish to go through variables and try to put as many to one.
@@ -346,30 +350,25 @@ function solve1OKPAux(prob::Problem, assignment::Vector{Int}, indEndAssignment::
 
     """
 
-    Backtracking
+    Backtracking or End
 
-    """
-    
-    verbose && println("On commence le Backtracking")
-
-    return reconstructSuperSolution(Solution(bestSolPrim[revP], [lb]), assignment, indEndAssignment, assignmentProfit)
-
-    """
-    A SUPPRIMER LE EXIT !!!
     """
 
     if iterLastOne >= 1 # we'll begin the backtracking after the assignment
-        sol, lb = backtrack(prob, assignment, indEndAssignment, p, revP, iterLastOne, bestSolPrim, lb, weightRemaining, lb, ub, verbose = verbose)
-        return reconstructSuperSolution(Solution(sol[revP], [lb]), assignment, indEndAssignment, assignmentProfit)
+        sol, lb = backtrackJules(prob, p, revP, iterLastOne, bestSolPrim, lb, weightRemaining, lb, ub, verbose = verbose)
+        verbose && println("[END - solve1OKPAux]")
+        return reconstructSuperSolution(Solution(sol[revP], [lb]), assignment, indEndAssignment, assignmentProfit, verbose=verbose)
     else # the backtrack is useless
-        return reconstructSuperSolution(Solution(bestSolPrim[revP], [lb]), assignment, indEndAssignment, assignmentProfit)
+        verbose && println("[END - solve1OKPAux]")
+        return reconstructSuperSolution(Solution(bestSolPrim[revP], [lb]), assignment, indEndAssignment, assignmentProfit, verbose=verbose)
     end
 end
 
 """
     returns the solution of the initial super problem, from a given solution and assignment for a subProblem
 """
-function reconstructSuperSolution(solution::Solution, assignment::Vector{Int}, indEndAssignment::Int, assignmentProfit::Float64)
+function reconstructSuperSolution(solution::Solution, assignment::Vector{Int}, indEndAssignment::Int, assignmentProfit::Float64; verbose = false)
+    verbose && println("[reconstructSuperSolution]")
     if indEndAssignment != 0
         nbVarsInSuperP = length(solution.x) + indEndAssignment
         newX = Vector{Bool}(undef,nbVarsInSuperP)
@@ -383,8 +382,10 @@ function reconstructSuperSolution(solution::Solution, assignment::Vector{Int}, i
         end
         # result : newX is the new x
         newY = solution.y + assignmentProfit
+        verbose && println("[END - reconstructSuperSolution]")
         return Solution(newX,newY)
     else
+        verbose && println("[END - reconstructSuperSolution]")
         return solution
     end
 end
@@ -402,14 +403,18 @@ end
 """
 function solve1OKPMain(prob::Problem, assignment::Vector{Int} = Vector{Int}(), indEndAssignment::Int = 0, assignmentWeight::Float64 = 0., assignmentProfit::Float64 = 0.; verbose = false)
     @assert prob.nbObj == 1 "This problem is no 1OKP"
+    verbose && println("[solve1OKPMain]")
 
     # if the assignment is empty, we initialize the array at a size of nbVars in prob
     if assignment == []
-        return solve1OKPAux(prob,assignment,indEndAssignment,assignmentWeight,assignmentProfit)
+        verbose && println("[END - solve1OKPMain]")
+        return solve1OKPAux(prob,assignment,indEndAssignment,assignmentWeight,assignmentProfit,verbose=verbose)
     else
         # creation of the subproblem
-        subProb = createSubProblem(prob,assignment,indEndAssignment)
-        return solve1OKPAux(prob,assignment,indEndAssignment,assignmentWeight,assignmentProfit)
+        subProb = createSubProblem(prob,assignment,indEndAssignment, verbose=verbose)
+        print(subProb)
+        verbose && println("[END - solve1OKPMain]")
+        return solve1OKPAux(prob,assignment,indEndAssignment,assignmentWeight,assignmentProfit,verbose=verbose)
     end
 end
 
@@ -442,10 +447,13 @@ end
     @ub : best upper bound
 """
 function backtrackJules(prob::Problem, p::Vector{Int}, revP::Vector{Int}, indexOnOrdered::Int, bestSolPrim::Vector{Bool}, currentLB::Float64, weightRemaining::Float64, lb::Float64, ub::Float64; verbose = false)
+    verbose && println("[backtrackJules] - indexOnOrdered = ",indexOnOrdered,", bestSolPrim = ",bestSolPrim)
 
     if indexOnOrdered == 0 || lb == ub # stopping rule, end of study or optimality
+    verbose && println("[END - backtrackJules]")
         return bestSolPrim, lb
     elseif bestSolPrim[indexOnOrdered] == 0 # we can't test anything here because the item is not assigned to one, we backtrackJules with indexOnOrdered-1
+        verbose && println("[RECURSIVE CALL - backtrackJules]")
         return backtrackJules(prob, p, revP, indexOnOrdered-1, bestSolPrim, currentLB, weightRemaining, lb, ub, verbose = verbose)
     else # we are somewhere in the oredered list and we indexOnOrdered targets a item assigned to one
         iterLastOne = prob.nbVar # initialization of iterLastOne 
@@ -509,19 +517,22 @@ function backtrackJules(prob::Problem, p::Vector{Int}, revP::Vector{Int}, indexO
                 verbose && println()
 
                 # we start a new backtrack, starting from the last one value
+                verbose && println("[RECURSIVE CALL - backtrackJules]")
                 return backtrackJules(prob, p, revP, indexOnOrdered, bestSolPrim, lb, weightRemaining, lb, ub, verbose = verbose)
             else # the new solution is not better
-                verbose && println("Coup dur, on continue le backtrackJules\n")
+                verbose && println("The new solution is not better, we keep backtracking\n")
                 # we free the variable indexOnOrdered, so the lb and weightRemaining are updated
                 newCurrentLB = currentLB - prob.objs[1].profits[p[indexOnOrdered]]
                 newWeightRemaining = weightRemaining + prob.constraint.weights[p[indexOnOrdered]]
+                verbose && println("[RECURSIVE CALL - backtrackJules]")
                 return backtrackJules(prob, p, revP, indexOnOrdered-1, bestSolPrim, newCurrentLB, newWeightRemaining, lb, ub, verbose = verbose)
             end
         else # there is no way the new solution can be better than the old one
-            verbose && println()
+            verbose && println("The new solution can't be better, we keep backtracking\n")
             # we free the variable indexOnOrdered, so the lb and weightRemaining are updated
             newCurrentLB = currentLB - prob.objs[1].profits[p[indexOnOrdered]]
             newWeightRemaining = weightRemaining + prob.constraint.weights[p[indexOnOrdered]]
+            verbose && println("[RECURSIVE CALL - backtrackJules]")
             return backtrackJules(prob, p, revP, indexOnOrdered-1, bestSolPrim, newCurrentLB, newWeightRemaining, lb, ub, verbose = verbose)
         end
     end

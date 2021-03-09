@@ -54,11 +54,11 @@ function jules(fname::String = "test.dat", methodName::String = "TwoPhases", par
     testBandB(prob)
 end
 
-function main(fname::String = "test.dat")
+function main(fname::String = "1.dat"; verbose = false)
 
     prob = parser(fname)
 
-    sol = solve1OKP(weightedScalarRelax(prob,[1.,0.]))
+    sol = solve1OKPMain(weightedScalarRelax(prob,[1.,0.]), verbose = verbose)
 
     return sol
 end
