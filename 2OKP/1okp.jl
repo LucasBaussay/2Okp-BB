@@ -32,7 +32,7 @@ function backtrack(prob::Problem, assignment::Vector{Int}, indEndAssignment::Int
 
         verbose && println("On tente d'améliorer en fixant x_$(permList[iter]) à 0")
 
-        # goal : improve current solution by assigning the variable permList[iter] to zero.
+        # GOAL : improve current solution by assigning the variable permList[iter] to zero.
         
         currentPoidsRest = poidsRestPrim + prob.constraint.weights[permList[iter]]
         currentProfit = currentLB - prob.objs[1].profits[permList[iter]]
@@ -160,7 +160,7 @@ function solve1OKP(prob::Problem, assignment::Vector{Int} = Vector{Int}(), indEn
 
     """
 
-    # goal : inside bestSolPrim, we want to force to one all the first variables (ordered) that could fit in the knapsack
+    # GOAL : inside bestSolPrim, we want to force to one all the first variables (ordered) that could fit in the knapsack
     # iterating on the variables after iter. We stop if we can't assign the next variable to one. 
     while iter <= prob.nbVar && prob.constraint.weights[permList[iter]] <= poidsRestPrim
         var = permList[iter] # index of the variable (non ordered)
@@ -171,7 +171,7 @@ function solve1OKP(prob::Problem, assignment::Vector{Int} = Vector{Int}(), indEn
         iter += 1
     end
 
-    # goal : check if bestSolPrim is optimal, and if not, calculate a first upper bound
+    # GOAL : check if bestSolPrim is optimal, and if not, calculate a first upper bound
     if iter <= prob.nbVar # at least one object is assigned to zero
         # we can set the upper bound by adding the portion of the next item that can fit inside the knapsack
         ub = lb + (poidsRestPrim / prob.constraint.weights[permList[iter]]) * prob.objs[1].profits[permList[iter]]
@@ -180,7 +180,7 @@ function solve1OKP(prob::Problem, assignment::Vector{Int} = Vector{Int}(), indEn
         return Solution(bestSolPrim[revPermList], [lb])
     end
 
-    # goal : we finish to go through variables and try to put as many to one.
+    # GOAL : we finish to go through variables and try to put as many to one.
     # iterating on remaining variables (non ordered), we stop if we don't have any space remaining in the bag
     while iter <= prob.nbVar && poidsRestPrim > 0
         var = permList[iter] # index of the variable (non ordered)
@@ -311,7 +311,7 @@ function solve1OKPAux(prob::Problem, assignment::Vector{Int}, indEndAssignment::
     bestSolPrim = zeros(Bool, prob.nbVar) # current best primal solution (indexed on ordered variables) : bestSolPrim[1] targets the first best variable.
     indexFirstNotAssignedOV = 1 # index (ordered) of the first variable not assigned
     iterLastOne = 0 # index (ordered) of the last variable assigned to one in @bestSolPrim
-    # goal : inside bestSolPrim, we want to force to one all the first variables (ordered) that could fit in the knapsack
+    # GOAL : inside bestSolPrim, we want to force to one all the first variables (ordered) that could fit in the knapsack
     # iterating on the best variables first. We stop if we can't assign the next variable to one. 
     while indexFirstNotAssignedOV <= prob.nbVar && prob.constraint.weights[p[indexFirstNotAssignedOV]] <= weightRemaining
         orderedVar = p[indexFirstNotAssignedOV] # index of the variable (ordered)
@@ -322,7 +322,7 @@ function solve1OKPAux(prob::Problem, assignment::Vector{Int}, indEndAssignment::
         indexFirstNotAssignedOV += 1
     end
 
-    # goal : check if bestSolPrim is optimal, and if not, calculate a first upper bound
+    # GOAL : check if bestSolPrim is optimal, and if not, calculate a first upper bound
     if indexFirstNotAssignedOV <= prob.nbVar # at least one object is assigned to zero
         # we can set the upper bound by adding the portion of the next item that can fit inside the knapsack
         ub = lb + (weightRemaining / prob.constraint.weights[p[indexFirstNotAssignedOV]]) * prob.objs[1].profits[p[indexFirstNotAssignedOV]]
@@ -331,7 +331,7 @@ function solve1OKPAux(prob::Problem, assignment::Vector{Int}, indEndAssignment::
         return reconstructSuperSolution(Solution(bestSolPrim[revP], [lb]), assignment, indEndAssignment, assignmentProfit)
     end
 
-    # goal : we finish to go through variables and try to put as many to one.
+    # GOAL : we finish to go through variables and try to put as many to one.
     # iterating on remaining variables (ordered), we stop if we don't have any space remaining in the bag
     while indexFirstNotAssignedOV <= prob.nbVar && weightRemaining > 0
         orderedVar = p[indexFirstNotAssignedOV] # index of the variable (non ordered)
@@ -454,13 +454,13 @@ function backtrackJules(prob::Problem, p::Vector{Int}, revP::Vector{Int}, indexO
 
         verbose && println("On tente d'améliorer en fixant x_$(p[indexOnOrdered]) à 0")
 
-        # goal : improve current solution by assigning the variable p[indexOnOrdered] to zero.
+        # GOAL : improve current solution by assigning the variable p[indexOnOrdered] to zero.
         sol = falses(prob.nbVar-indexOnOrdered)
         currentWeightRemaining = weightRemaining + prob.constraint.weights[p[indexOnOrdered]] # because we took an item out of the bag
         currentProfit = currentLB - prob.objs[1].profits[p[indexOnOrdered]]
         currentUB = Inf
 
-        # goal : force the next variables (ordered). This will help us calculate a new upper bound.
+        # GOAL : force the next variables (ordered). This will help us calculate a new upper bound.
         # we stop when the next item can't fit in the bag
         indexBrokenOV = indexOnOrdered+1
         while indexBrokenOV <= prob.nbVar && prob.constraint.weights[p[indexBrokenOV]] <= currentWeightRemaining
@@ -470,12 +470,14 @@ function backtrackJules(prob::Problem, p::Vector{Int}, revP::Vector{Int}, indexO
             iterLastOne = indexBrokenOV
             indexBrokenOV += 1
         end
+        # result : indexBrokenOV targets the broken item in ordered list
 
         if indexBrokenOV <= prob.nbVar # at least the last variable (ordered) is assigned to zero, we can add a portion of the next item assigned to zero to get a UB.
             currentUB = currentProfit + (currentWeightRemaining / prob.constraint.weights[p[indexBrokenOV]]) * prob.objs[1].profits[p[indexBrokenOV]]
         else # all the next variables are assigned to one. The UB is the 
             currentUB = currentProfit
         end
+        # result : currentUB is the upper bound of the current sol
 
         verbose && println("La valeur max du sous problème est : $currentUB et la meilleure solution actuelle : $lb")
 
@@ -483,6 +485,7 @@ function backtrackJules(prob::Problem, p::Vector{Int}, revP::Vector{Int}, indexO
 
             verbose && println("Le sous problème est peut-être améliorant ! ")
 
+            # GOAL : Calculate the current LowerBound by forcing the rest of the items that fit in the bag to one.
             while indexBrokenOV <= prob.nbVar && currentWeightRemaining != 0
                 if prob.constraint.weights[p[indexBrokenOV]] <= currentWeightRemaining
                     sol[indexBrokenOV - indexOnOrdered] = 1
@@ -492,13 +495,15 @@ function backtrackJules(prob::Problem, p::Vector{Int}, revP::Vector{Int}, indexO
                 end
                 indexBrokenOV += 1
             end
+            # result : indexBrokenOV doesn't target a item in particular ! Could be a broken item or the end of the list.
+            #        : currentProfit is the new current lb
 
-            if currentProfit > lb
+            if currentProfit > lb # comparing the new lower bound to the new one
 
                 verbose && println("Youpi on améliore : de $lb à $currentProfit")
 
-                lb = currentProfit
-                bestSolPrim[indexOnOrdered] = 0
+                lb = currentProfit # updating lb
+                bestSolPrim[indexOnOrdered] = 0 # putting indexOnOrdered item to zero was a good choice, so we update bestSolPrim accordingly
                 bestSolPrim[indexOnOrdered+1:end] = sol[1:end]
                 indexOnOrdered = iterLastOne
                 weightRemaining = currentPoidsRest
