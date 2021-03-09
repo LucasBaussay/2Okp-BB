@@ -446,7 +446,7 @@ end
     @lb : best lower bound
     @ub : best upper bound
 """
-function backtrackJules(prob::Problem, p::Vector{Int}, revP::Vector{Int}, indexOnOrdered::Int, bestSolPrim::Vector{Bool}, currentLB::Float64, weightRemaining::Float64, lb::Float64, ub::Float64; verbose = false)
+function backtrackJules(prob::Problem, p::Vector{Int}, revP::Vector{Int}, indexOnOrdered::Int, bestSolPrim::Vector{Bool}, currentLB::Float64, weightRemaining::Float64, lb::Float64, solLB::Vector{Bool}, ub::Float64; verbose = false)
     verbose && println("[backtrackJules] - indexOnOrdered = $indexOnOrdered, bestSolPrim = $bestSolPrim, bestSolPrim[revP] = $(bestSolPrim[revP])")
 
     if indexOnOrdered == 0 || lb == ub # stopping rule, end of study or optimality
@@ -454,7 +454,7 @@ function backtrackJules(prob::Problem, p::Vector{Int}, revP::Vector{Int}, indexO
         return bestSolPrim, lb
     elseif bestSolPrim[indexOnOrdered] == 0 # we can't test anything here because the item is not assigned to one, we backtrackJules with indexOnOrdered-1
         verbose && println("[RECURSIVE CALL - backtrackJules]")
-        return backtrackJules(prob, p, revP, indexOnOrdered-1, bestSolPrim, currentLB, weightRemaining, lb, ub, verbose = verbose)
+        return backtrackJules(prob, p, revP, indexOnOrdered-1, bestSolPrim, currentLB, weightRemaining, lb, solLB, ub, verbose = verbose)
     else # we are somewhere in the oredered list and we indexOnOrdered targets a item assigned to one
         iterLastOne = prob.nbVar # initialization of iterLastOne 
 
@@ -525,14 +525,14 @@ function backtrackJules(prob::Problem, p::Vector{Int}, revP::Vector{Int}, indexO
 
                 # we start a new backtrack, starting from the last one value
                 verbose && println("[RECURSIVE CALL - backtrackJules]")
-                return backtrackJules(prob, p, revP, indexOnOrdered, bestSolPrim, lb, weightRemaining, lb, ub, verbose = verbose)
+                return backtrackJules(prob, p, revP, indexOnOrdered, bestSolPrim, lb, weightRemaining, lb, solLB, ub, verbose = verbose)
             else # the new solution is not better
                 verbose && println("\n- The new solution is not better, we keep backtracking\n")
                 # we free the variable indexOnOrdered, so the lb and weightRemaining are updated
                 newCurrentLB = currentLB - prob.objs[1].profits[p[indexOnOrdered]]
                 newWeightRemaining = weightRemaining + prob.constraint.weights[p[indexOnOrdered]]
                 verbose && println("[RECURSIVE CALL - backtrackJules]")
-                return backtrackJules(prob, p, revP, indexOnOrdered-1, bestSolPrim, newCurrentLB, newWeightRemaining, lb, ub, verbose = verbose)
+                return backtrackJules(prob, p, revP, indexOnOrdered-1, bestSolPrim, newCurrentLB, newWeightRemaining, lb, solLB, ub, verbose = verbose)
             end
         else # there is no way the new solution can be better than the old one
             verbose && println("The new solution can't be better, we keep backtracking\n")
@@ -540,11 +540,11 @@ function backtrackJules(prob::Problem, p::Vector{Int}, revP::Vector{Int}, indexO
             newCurrentLB = currentLB - prob.objs[1].profits[p[indexOnOrdered]]
             newWeightRemaining = weightRemaining + prob.constraint.weights[p[indexOnOrdered]]
             verbose && println("[RECURSIVE CALL - backtrackJules]")
-            return backtrackJules(prob, p, revP, indexOnOrdered-1, bestSolPrim, newCurrentLB, newWeightRemaining, lb, ub, verbose = verbose)
+            return backtrackJules(prob, p, revP, indexOnOrdered-1, bestSolPrim, newCurrentLB, newWeightRemaining, lb, solLB, ub, verbose = verbose)
         end
     end
 end
 
 function branchAndBoundJules(prob::Problem, p::Vector{Int}, revP::Vector{Int}, indexOnOrdered::Int, bestSolPrim::Vector{Bool}, currentLB::Float64, weightRemaining::Float64, lb::Float64, ub::Float64; verbose = false)
-    
+
 end

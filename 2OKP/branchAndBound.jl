@@ -11,16 +11,21 @@ include("1okp.jl")
 
 """
 
-# return the λ scalarization of the problem prob
+"""
+    return the λ scalarization of the problem prob
+
+    @prob : MOKP
+    @λ : Vector{Float64}
+"""
 function weightedScalarRelax(prob::Problem, λ::Vector{Float64})
     @assert length(λ) == prob.nbObj "Le vecteur λ ne convient pas"
 
     obj = Vector{Float64}(undef, prob.nbVar)
-    # calculate the coefs of each variable by merging all the objectives
+    # GOAL : calculate the coef of each variable in the new objective by merging all the objectives
     for iterVar = 1:prob.nbVar
         obj[iterVar] = sum([λ[iter] * prob.objs[iter].profits[iterVar] for iter = 1:prob.nbObj])
     end
-
+    # construction of the problem
     return Problem(
         1,
         prob.nbVar,
@@ -29,9 +34,12 @@ function weightedScalarRelax(prob::Problem, λ::Vector{Float64})
     )
 end
 
-# return y the point associated with the solution x and the problem prob
+"""
+    return y the point associated with the solution x and the problem prob
+"""
 function evaluate(prob::Problem, x::Vector{Bool})
     y = zeros(Float64, prob.nbObj)
+    # GOAL : calculate the image of x by prob
     for iterObj = 1:prob.nbObj
         for iter = 1:prob.nbVar
             if x[iter]
@@ -39,7 +47,6 @@ function evaluate(prob::Problem, x::Vector{Bool})
             end
         end
     end
-
     # the resulting point
     return Solution(x, y)
 end
