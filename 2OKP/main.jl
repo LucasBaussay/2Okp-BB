@@ -58,7 +58,7 @@ function main(fname::String = "test.dat")
 
     prob = parser(fname)
 
-    sol = solve1OKP(prob)
+    sol = solve1OKP(weightedScalarRelax(prob,[1.,0.]))
 
     return sol
 end
