@@ -355,7 +355,7 @@ function solve1OKPAux(prob::Problem, assignment::Vector{Int}, indEndAssignment::
     """
 
     if iterLastOne >= 1 # we'll begin the backtracking after the assignment
-        sol, lb = backtrackJules(prob, p, revP, iterLastOne, bestSolPrim, lb, weightRemaining, lb, ub, verbose = verbose)
+        sol, lb = backtrackJules(prob, p, revP, iterLastOne, bestSolPrim, lb, weightRemaining, lb, bestSolPrim[1:end], ub, verbose = verbose)
         verbose && println("[END - solve1OKPAux]")
         return reconstructSuperSolution(Solution(sol[revP], [lb]), assignment, indEndAssignment, assignmentProfit, verbose=verbose)
     else # the backtrack is useless
@@ -451,7 +451,7 @@ function backtrackJules(prob::Problem, p::Vector{Int}, revP::Vector{Int}, indexO
 
     if indexOnOrdered == 0 || lb == ub # stopping rule, end of study or optimality
     verbose && println("[END - backtrackJules]")
-        return bestSolPrim, lb
+        return solLB, lb
     elseif bestSolPrim[indexOnOrdered] == 0 # we can't test anything here because the item is not assigned to one, we backtrackJules with indexOnOrdered-1
         verbose && println("[RECURSIVE CALL - backtrackJules]")
         return backtrackJules(prob, p, revP, indexOnOrdered-1, bestSolPrim, currentLB, weightRemaining, lb, solLB, ub, verbose = verbose)
@@ -512,16 +512,18 @@ function backtrackJules(prob::Problem, p::Vector{Int}, revP::Vector{Int}, indexO
             #        : currentProfit is the new current lb
             verbose && println("    -> currentProfit is the new current lb, currentProfit = $currentProfit")
 
+            bestSolPrim[indexOnOrdered] = 0 # putting indexOnOrdered item to zero was a good choice, so we update bestSolPrim accordingly
+            bestSolPrim[indexOnOrdered+1:end] = sol[1:end] # bestSolPrim copy the solution saved in the vector sol
+            indexOnOrdered = iterLastOne
+            weightRemaining = currentWeightRemaining
+
             if currentProfit > lb # comparing the new lower bound to the new one
 
                 verbose && println("\n- currentProfit > lb -> YEY we have made a progress : from $lb to $currentProfit")
 
                 verbose && println("\n- Update time(lb,bestSolPrim,indexOnOrdered,weightRemaining")
                 lb = currentProfit # updating lb
-                bestSolPrim[indexOnOrdered] = 0 # putting indexOnOrdered item to zero was a good choice, so we update bestSolPrim accordingly
-                bestSolPrim[indexOnOrdered+1:end] = sol[1:end] # bestSolPrim copy the solution saved in the vector sol
-                indexOnOrdered = iterLastOne
-                weightRemaining = currentWeightRemaining
+                solLB = bestSolPrim[1:end]
 
                 # we start a new backtrack, starting from the last one value
                 verbose && println("[RECURSIVE CALL - backtrackJules]")
@@ -529,10 +531,8 @@ function backtrackJules(prob::Problem, p::Vector{Int}, revP::Vector{Int}, indexO
             else # the new solution is not better
                 verbose && println("\n- The new solution is not better, we keep backtracking\n")
                 # we free the variable indexOnOrdered, so the lb and weightRemaining are updated
-                newCurrentLB = currentLB - prob.objs[1].profits[p[indexOnOrdered]]
-                newWeightRemaining = weightRemaining + prob.constraint.weights[p[indexOnOrdered]]
                 verbose && println("[RECURSIVE CALL - backtrackJules]")
-                return backtrackJules(prob, p, revP, indexOnOrdered-1, bestSolPrim, newCurrentLB, newWeightRemaining, lb, solLB, ub, verbose = verbose)
+                return backtrackJules(prob, p, revP, indexOnOrdered, bestSolPrim, currentProfit, weightRemaining, lb, solLB, ub, verbose = verbose)
             end
         else # there is no way the new solution can be better than the old one
             verbose && println("The new solution can't be better, we keep backtracking\n")
