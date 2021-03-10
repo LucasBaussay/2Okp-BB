@@ -52,6 +52,8 @@ function evaluate(prob::Problem, x::Vector{Bool})
 end
 
 """
+    whichFathomed(upperBound::DualSet, lowerBound::Vector{Solution}, S::Vector{Solution}, consecutivePoint::Vector{Tuple{Solution, Solution}})
+
     return the way the subproblem is fathomed : none, infeasibility, optimality, dominance
 """
 function whichFathomed(upperBound::DualSet, lowerBound::Vector{Solution}, S::Vector{Solution}, consecutivePoint::Vector{Tuple{Solution, Solution}})
@@ -86,6 +88,8 @@ function whichFathomed(upperBound::DualSet, lowerBound::Vector{Solution}, S::Vec
 end
 
 """
+    updateBounds!(S::Vector{Solution}, consecutiveSet::Vector{Tuple{Solution, Solution}}, lowerBoundSub::Vector{Solution})
+
     update upper et lower bound sets according to the new feasible subproblem
 
     @S : Solution
@@ -123,6 +127,8 @@ function updateBounds!(S::Vector{Solution}, consecutiveSet::Vector{Tuple{Solutio
 end
 
 """
+    newAssignments(A::Vector{Int},i::Int)
+
     return a tuple of the two vectors : assignments for the two subproblems.
     For the first (copyA), the variable i has been assigned to zero, for the second (A), i has been assigned to one
 """
@@ -141,6 +147,8 @@ end
 """
 
 """
+    computeBoundDicho(prob::Problem, assignment::Vector{Int}, indEndAssignment::Int, assignmentWeight::Float64, assignmentProfit::Vector{Float64}, ϵ::Float64; verbose = false)
+
     computes bound dicho
 
     @prob : current problem
@@ -230,6 +238,10 @@ function computeBoundDicho(prob::Problem, assignment::Vector{Int}, indEndAssignm
     return XSEm, consecutiveSet, DualSet(A, B)
 end
 
+"""
+    branchAndBound(prob::Problem, assignment::Vector{Int}, assignmentWeight::Float64, assignmentProfit::Vector{Float64}, S::Vector{Solution}, consecutiveSet::Vector{Tuple{Solution, Solution}}, indEndAssignment::Int = 0, ϵ::Float64 =0.01; verbose = false)
+
+"""
 function branchAndBound(prob::Problem, assignment::Vector{Int}, assignmentWeight::Float64, assignmentProfit::Vector{Float64}, S::Vector{Solution}, consecutiveSet::Vector{Tuple{Solution, Solution}}, indEndAssignment::Int = 0, ϵ::Float64 =0.01; verbose = false)
 
     #Arranger pour un sous problème
@@ -253,6 +265,11 @@ function branchAndBound(prob::Problem, assignment::Vector{Int}, assignmentWeight
     end
 end
 
+"""
+    reorderVariable(prob::Problem, reorderVect::Vector{Int})
+
+    returns a new problem ordered with reorderVect
+"""
 function reorderVariable(prob::Problem, reorderVect::Vector{Int})
     @assert prob.nbVar==length(reorderVect) "Wrong argument for the function reorderVariable"
 
@@ -270,6 +287,11 @@ end
 
 """
 
+"""
+    main_BranchandBound(prob::Problem, orderName = "random", ϵ::Float64 = 0.01 ; verbose = false)
+
+    returns the set of non dominated points coputed with the multi objective branch and bound
+"""
 function main_BranchandBound(prob::Problem, orderName = "random", ϵ::Float64 = 0.01 ; verbose = false)
 
     permVect, revPermVect = permOrder(prob, orderName)
