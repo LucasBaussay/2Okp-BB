@@ -200,7 +200,7 @@ function computeBoundDicho(prob::Problem, assignment::Vector{Int}, indEndAssignm
             solE = evaluate(prob, solE.x)
 
             """ SEE BELOW ??? """
-            if sum(λ .* solE.y) > sum(λ .* solR.y) # solE is better than solR according λ
+            if sum(λ .* solE.y) > sum(λ .* solR.y) # solE is better than solR according to λ
                 push!(XSEm, solE) # solE is solution we want
                 push!(S, (solR, solE), (solE, solL)) # now we need to study (solR, solE) and (solE, solL)
                 verbose && println("On a trouvé la solution : $(solE.y)")
@@ -312,7 +312,7 @@ function main_BranchandBound(prob::Problem, orderName = "random", ϵ::Float64 = 
     # computing the branch and bound
     branchAndBound(auxProb, assignment, 0., zeros(Float64, prob.nbObj),  S, consecutivePoints, 0, ϵ, verbose = verbose)
 
-    # converting items of S into solutions
+    # reorder variables inside items of S
     S = broadcast(sol->Solution(sol.x[revPermVect], sol.y), S)
 
     return S
