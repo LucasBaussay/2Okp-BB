@@ -21,7 +21,7 @@ end
 
     returns the permutation vector to order variables according to the given order. A reverse permutation vector is returned too.
 """
-function permOrder(prob::Problem, order::String = "random")
+function permOrder(prob::Problem, order::String = "random"; verbose = false)
 
     @assert prob.nbObj == 2 "This problem is 20KP"
     @assert order in ("averageUtility", "bestMin", "rankSum", "random") "Unknown criteria for order the variables"
@@ -35,10 +35,10 @@ function permOrder(prob::Problem, order::String = "random")
         for iter in 1:prob.nbVar
             worst[iter] = min(u1[iter], u2[iter])
         end
-        println(worst)
+        verbose && println(worst)
 
         perm = sortperm(worst, rev=true)
-        println(perm)
+        verbose && println(perm)
 
     elseif order == "averageUtility"
 
@@ -70,6 +70,6 @@ function permOrder(prob::Problem, order::String = "random")
     for iter = 1:prob.nbVar
         revPerm[perm[iter]] = iter
     end
-    
+
     return(perm, revPerm)
 end

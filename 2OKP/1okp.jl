@@ -233,31 +233,41 @@ end
     construct and returns the subproblem associated with the given problem and assignment
 """
 function createSubProblem(prob::Problem, assignment::Vector{Int}, assignmentWeight::Float64, indEndAssignment::Int; verbose = false)
-    verbose && println("[createSubProblem]")
-    newNbVars = prob.nbVar - indEndAssignment # new number of variables
-    newObjs = Vector{Obj}(undef, prob.nbObj) # new objectives
-    for indexObj in 1:length(prob.objs) # going through objectives
-        obj = prob.objs[indexObj] # current objetive
-        newObj = Vector{Float64}(undef, newNbVars) # new objective, replacing obj
-        for indexVar in 1:newNbVars # iterating on the variables not assigned
-            newObj[indexVar] = obj.profits[indexVar+indEndAssignment] # filling newObj
-        end
-        newObjs[indexObj] = Obj(newObj)
-    end
-    # result : newObjs contains the new objectives
+    # verbose && println("[createSubProblem]")
+    # newNbVars = prob.nbVar - indEndAssignment # new number of variables
+    # newObjs = Vector{Obj}(undef, prob.nbObj) # new objectives
+    # for indexObj in 1:length(prob.objs) # going through objectives
+    #     obj = prob.objs[indexObj] # current objetive
+    #     newObj = Vector{Float64}(undef, newNbVars) # new objective, replacing obj
+    #     for indexVar in 1:newNbVars # iterating on the variables not assigned
+    #         newObj[indexVar] = obj.profits[indexVar+indEndAssignment] # filling newObj
+    #     end
+    #     newObjs[indexObj] = Obj(newObj)
+    # end
+    # # result : newObjs contains the new objectives
+    #
+    # newWeightConstr = prob.constraint.maxWeight - assignmentWeight # new max capa
+    # newWeights = Vector{Float64}(undef,newNbVars) # new vector of weights in the constraint
+    # for indexVar in 1:newNbVars
+    #     newWeights[indexVar] = prob.constraint.weights[indexVar+indEndAssignment]
+    # end
+    # newConstr = Const(newWeightConstr,newWeights)
+    # # result : newConst is the new constraint for the subproblem
+    #
+    # # creation of the subproblem
+    # subProb = Problem(prob.nbObj,newNbVars,newObjs,newConstr)
+    # verbose && println("[END - createSubProblem]")
+    # return subProb
+    #
+    # exit()
 
-    newWeightConstr = prob.constraint.maxWeight - assignmentWeight # new max capa
-    newWeights = Vector{Float64}(undef,newNbVars) # new vector of weights in the constraint
-    for indexVar in 1:newNbVars
-        newWeights[indexVar] = prob.constraint.weights[indexVar+indEndAssignment]
-    end
-    newConstr = Const(newWeightConstr,newWeights)
-    # result : newConst is the new constraint for the subproblem
+    return Problem(
+        prob.nbObj,
+        prob.nbVar - indEndAssignment,
+        broadcast(obj->Obj(obj.profits[indEndAssignment+1:end]), prob.objs),
+        Const(prob.constraint.maxWeight - assignmentWeight, prob.constraint.weights[indEndAssignment+1:end])
+    )
 
-    # creation of the subproblem
-    subProb = Problem(prob.nbObj,newNbVars,newObjs,newConstr)
-    verbose && println("[END - createSubProblem]")
-    return subProb
 end
 
 """
@@ -445,15 +455,15 @@ end
     @iterLastOne : index (ordered) of the last variable assigned to one in @bestSolPrim
     @indexFirstNotAssignedOV : index (ordered) of the first variable not assigned
 """
-function solve1OKPAux(prob::Problem, assignment::Vector{Int}, indEndAssignment::Int = 0, assignmentWeight::Float64 = 0., assignmentProfit::Float64 = 0.; verbose = false)
-verbose && println("[solve1OKPMain]")
+function solve1OKPAux(prob::Problem; verbose = false)
+    verbose && println("[solve1OKPMain]")
     # permutation list sorting the variables. Beginning with the best ones, ending with worsts.
     # usage : p[1] gives the index of the first best variable
     p = sortperm(prob.objs[1].profits ./ prob.constraint.weights, rev = true)
     # inverse permutation list allowing to get back to the original indexes of the variables
     revP = revPerm(p)
 
-    lb = 0. + assignmentProfit # profit we are sure to make because the solution is feasible
+    lb = 0. # profit we are sure to make because the solution is feasible
     ub = Inf
 
     weightRemaining = prob.constraint.maxWeight
@@ -485,7 +495,7 @@ verbose && println("[solve1OKPMain]")
     else # all the variables are assigned to one
         # bestSolPrim is optimal
         verbose && println("[END - solve1OKPAux]")
-        return reconstructSuperSolution(Solution(bestSolPrim[revP], [lb]), assignment, indEndAssignment, assignmentProfit, verbose=verbose)
+        return Solution(bestSolPrim[revP], [lb])
     end
 
     # GOAL : we finish to go through variables and try to put as many to one.
@@ -510,10 +520,10 @@ verbose && println("[solve1OKPMain]")
     if iterLastOne >= 1 # we'll begin the backtracking after the assignment
         sol, lb = backtrackJules(prob, p, revP, iterLastOne, bestSolPrim, lb, weightRemaining, lb, bestSolPrim[1:end], ub, verbose = verbose)
         verbose && println("[END - solve1OKPAux]")
-        return reconstructSuperSolution(Solution(sol[revP], [lb]), assignment, indEndAssignment, assignmentProfit, verbose=verbose)
+        return Solution(sol[revP], [lb])
     else # the backtrack is useless
         verbose && println("[END - solve1OKPAux]")
-        return reconstructSuperSolution(Solution(bestSolPrim[revP], [lb]), assignment, indEndAssignment, assignmentProfit, verbose=verbose)
+        return Solution(bestSolPrim[revP], [lb])
     end
 end
 
@@ -539,8 +549,10 @@ function solve1OKPMain(prob::Problem, assignment::Vector{Int} = Vector{Int}(), i
     else
         # creation of the subproblem
         subProb = createSubProblem(prob,assignment,assignmentWeight, indEndAssignment, verbose=verbose)
-        print(subProb)
         verbose && println("[END - solve1OKPMain]")
-        return solve1OKPAux(prob,assignment,indEndAssignment,assignmentWeight,assignmentProfit,verbose=verbose)
+        sol = solve1OKPAux(subProb, verbose=verbose)
+
+        return reconstructSuperSolution(sol, assignment, indEndAssignment, assignmentProfit, verbose = verbose)
+
     end
 end
