@@ -250,14 +250,19 @@ function branchAndBound(prob::Problem, assignment::Vector{Int}, assignmentWeight
     # computing the type of pruning for the subproblem
     fathomed::Fathomed = whichFathomed(upperBoundSub, lowerBoundSub, S, consecutiveSet)
 
+    # stop search because we found an optimal solution
     if fathomed == optimality
         updateBounds!(S, consecutiveSet, lowerBoundSub)
     end
-    if fathomed == none && indEnd
+
+    # keep branching
+    if fathomed == none && indEndAssignment <= prob.nbVar
         A0, A1 = newAssignments(assignment, indEndAssigment+1)
+
         verbose && println("Branch and Bound sur la variable $(indEndAssignment+1), on la fixe à 0")
+
         branchAndBound(prob, A0, assignmentWeight, assignmentProfit, S, consecutiveSet, indEndAssignment+1, ϵ, verbose = verbose) # exploring the first subproblem
-        verbose && println()
+
         verbose && println("Branch and Bound sur la variable $(i+1), on la fixe à 1")
 
         variableProfit = broadcast(obj->obj.profits[indEndAssignment+1], prob.objs)
