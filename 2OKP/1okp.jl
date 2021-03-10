@@ -232,7 +232,7 @@ end
 """
     construct and returns the subproblem associated with the given problem and assignment
 """
-function createSubProblem(prob::Problem, assignment::Vector{Int}, indEndAssignment::Int; verbose = false)
+function createSubProblem(prob::Problem, assignment::Vector{Int}, assignmentWeight::Float64, indEndAssignment::Int; verbose = false)
     verbose && println("[createSubProblem]")
     newNbVars = prob.nbVar - indEndAssignment # new number of variables
     newObjs = Vector{Obj}(undef, prob.nbObj) # new objectives
@@ -240,9 +240,9 @@ function createSubProblem(prob::Problem, assignment::Vector{Int}, indEndAssignme
         obj = prob.objs[indexObj] # current objetive
         newObj = Vector{Float64}(undef, newNbVars) # new objective, replacing obj
         for indexVar in 1:newNbVars # iterating on the variables not assigned
-            newObj[indexVar] = obj[indexVar+indEndAssignment] # filling newObj
+            newObj[indexVar] = obj.profits[indexVar+indEndAssignment] # filling newObj
         end
-        newObjs[indexObj] = newObj
+        newObjs[indexObj] = Obj(newObj)
     end
     # result : newObjs contains the new objectives
 
@@ -277,7 +277,7 @@ function reconstructSuperSolution(solution::Solution, assignment::Vector{Int}, i
             end
         end
         # result : newX is the new x
-        newY = solution.y + assignmentProfit
+        newY = solution.y .+ [assignmentProfit]
         verbose && println("[END - reconstructSuperSolution]")
         return Solution(newX,newY)
     else
@@ -538,7 +538,7 @@ function solve1OKPMain(prob::Problem, assignment::Vector{Int} = Vector{Int}(), i
         return solve1OKPAux(prob,assignment,indEndAssignment,assignmentWeight,assignmentProfit,verbose=verbose)
     else
         # creation of the subproblem
-        subProb = createSubProblem(prob,assignment,indEndAssignment, verbose=verbose)
+        subProb = createSubProblem(prob,assignment,assignmentWeight, indEndAssignment, verbose=verbose)
         print(subProb)
         verbose && println("[END - solve1OKPMain]")
         return solve1OKPAux(prob,assignment,indEndAssignment,assignmentWeight,assignmentProfit,verbose=verbose)

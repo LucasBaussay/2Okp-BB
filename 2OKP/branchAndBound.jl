@@ -15,7 +15,7 @@ include("1okp.jl")
     return the λ scalarization of the given problem prob
 
     @prob : MOKP
-    @λ : Vector{Float64}    
+    @λ : Vector{Float64}
 """
 function weightedScalarRelax(prob::Problem, λ::Vector{Float64})
     @assert length(λ) == prob.nbObj "Le vecteur λ ne convient pas"
@@ -116,7 +116,7 @@ function updateBounds!(S::Vector{Solution}, consecutiveSet::Vector{Tuple{Solutio
                 indSuppr[indEndIndSuppr] = iter
             end
         end
-        # now deleting the previous consecutive points that are no longer consecutive 
+        # now deleting the previous consecutive points that are no longer consecutive
         for iter = 1:indEndIndSuppr
             deleteat!(consecutiveSet, indSuppr[iter]-iter+1)
         end
@@ -169,8 +169,8 @@ function computeBoundDicho(prob::Problem, assignment::Vector{Int}, indEndAssignm
     S = Vector{Tuple{Solution, Solution}}() # queue of solutions to study
 
     # computing the two first points, sol1 is the best for the only the objective number 1, and sol2 for the objective number 2.
-    sol1 = solve1OKP(weightedScalarRelax(prob, [1., ϵ]), assignment, indEndAssignment, assignmentWeight, sum([1., ϵ] .* assignmentProfit), verbose = verbose)
-    sol2 = solve1OKP(weightedScalarRelax(prob, [ϵ, 1.]), assignment, indEndAssignment, assignmentWeight, sum([ϵ, 1.] .* assignmentProfit), verbose = verbose)
+    sol1 = solve1OKPMain(weightedScalarRelax(prob, [1., ϵ]), assignment, indEndAssignment, assignmentWeight, sum([1., ϵ] .* assignmentProfit), verbose = verbose)
+    sol2 = solve1OKPMain(weightedScalarRelax(prob, [ϵ, 1.]), assignment, indEndAssignment, assignmentWeight, sum([ϵ, 1.] .* assignmentProfit), verbose = verbose)
 
     # evaluating the two sols and constructing the associated solutions
     sol1 = evaluate(prob, sol1.x)
@@ -196,7 +196,7 @@ function computeBoundDicho(prob::Problem, assignment::Vector{Int}, indEndAssignm
             # computing the direction of the search
             λ = [solL.y[2]-solR.y[2], solR.y[1]-solL.y[1]]
             # computing the resulting solution
-            solE = solve1OKP(weightedScalarRelax(prob, λ), assignment, indEndAssignment, assignmentWeight, sum(λ .* assignmentProfit), verbose = false)
+            solE = solve1OKPMain(weightedScalarRelax(prob, λ), assignment, indEndAssignment, assignmentWeight, sum(λ .* assignmentProfit), verbose = false)
             solE = evaluate(prob, solE.x)
 
             """ SEE BELOW ??? """
@@ -204,8 +204,8 @@ function computeBoundDicho(prob::Problem, assignment::Vector{Int}, indEndAssignm
                 push!(XSEm, solE) # solE is solution we want
                 push!(S, (solR, solE), (solE, solL)) # now we need to study (solR, solE) and (solE, solL)
                 verbose && println("On a trouvé la solution : $(solE.y)")
-            else # solE is equal to solR according to λ, so we didn't find new solutions 
-                push!(consecutiveSet, (solR, solL)) # we know we won't find solutions between solR, solL, so we memorize the tuple 
+            else # solE is equal to solR according to λ, so we didn't find new solutions
+                push!(consecutiveSet, (solR, solL)) # we know we won't find solutions between solR, solL, so we memorize the tuple
                 verbose && println("On a rien trouvé dans cette direction")
             end
         end
@@ -250,13 +250,11 @@ function branchAndBound(prob::Problem, assignment::Vector{Int}, assignmentWeight
     # computing the type of pruning for the subproblem
     fathomed::Fathomed = whichFathomed(upperBoundSub, lowerBoundSub, S, consecutiveSet)
 
-    """ ??? """
-    if fathomed != dominance && fathomed != infeasibility
+    if fathomed == optimality
         updateBounds!(S, consecutiveSet, lowerBoundSub)
     end
-
-    if fathomed == none && indEndAssignment < prob.nbVar
-
+    if fathomed == none && indE
+        A0, A1 = newAssignments(assignment, indEndAssigment+1)
         verbose && println("Branch and Bound sur la variable $(indEndAssignment+1), on la fixe à 0")
 
         branchAndBound(prob, A0, assignmentWeight, assignmentProfit, S, consecutiveSet, indEndAssignment+1, ϵ, verbose = verbose) # exploring the first subproblem
