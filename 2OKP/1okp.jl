@@ -156,7 +156,7 @@ function solve1OKP(prob::Problem, assignment::Vector{Int} = Vector{Int}(), indEn
 
     """
 
-    Construction of a good first feasible solution being our LowerBound. We calculate our UpperBound by adding a portion of the next item.
+    Construction of a good first feasible solution being our LowerBound. We compute our UpperBound by adding a portion of the next item.
 
     """
 
@@ -171,7 +171,7 @@ function solve1OKP(prob::Problem, assignment::Vector{Int} = Vector{Int}(), indEn
         iter += 1
     end
 
-    # GOAL : check if bestSolPrim is optimal, and if not, calculate a first upper bound
+    # GOAL : check if bestSolPrim is optimal, and if not, compute a first upper bound
     if iter <= prob.nbVar # at least one object is assigned to zero
         # we can set the upper bound by adding the portion of the next item that can fit inside the knapsack
         ub = lb + (poidsRestPrim / prob.constraint.weights[permList[iter]]) * prob.objs[1].profits[permList[iter]]
@@ -335,7 +335,7 @@ function backtrackJules(prob::Problem, p::Vector{Int}, revP::Vector{Int}, indexO
         currentUB = Inf
 
         verbose && println("\n- Forcing first variables that can fit into the bag")
-        # GOAL : force the next variables (ordered). This will help us calculate a new upper bound.
+        # GOAL : force the next variables (ordered). This will help us compute a new upper bound.
         # we stop when the next item can't fit in the bag
         indexBrokenOV = indexOnOrdered+1 # the item indexOnOrdered has to stay assigned to zero
         while indexBrokenOV <= prob.nbVar && prob.constraint.weights[p[indexBrokenOV]] <= currentWeightRemaining
@@ -365,7 +365,7 @@ function backtrackJules(prob::Problem, p::Vector{Int}, revP::Vector{Int}, indexO
             verbose && println("\n- currentUB > lb -> Le sous problème est peut-être améliorant ! ")
 
             verbose && println("\n- Forcing the rest of the items that fit inside the bag")
-            # GOAL : Calculate the current LowerBound by forcing the rest of the items that fit in the bag to one.
+            # GOAL : computing the current LowerBound by forcing the rest of the items that fit in the bag to one.
             while indexBrokenOV <= prob.nbVar && currentWeightRemaining != 0
                 if prob.constraint.weights[p[indexBrokenOV]] <= currentWeightRemaining
                     verbose && println("    (forcing $(p[indexBrokenOV]))")
@@ -460,7 +460,7 @@ verbose && println("[solve1OKPMain]")
 
     """
 
-    Construction of a good first feasible solution being our LowerBound. We calculate our UpperBound by adding a portion of the next item.
+    Construction of a good first feasible solution being our LowerBound. We compute our UpperBound by adding a portion of the next item.
 
     """
 
@@ -478,7 +478,7 @@ verbose && println("[solve1OKPMain]")
         indexFirstNotAssignedOV += 1
     end
 
-    # GOAL : check if bestSolPrim is optimal, and if not, calculate a first upper bound
+    # GOAL : check if bestSolPrim is optimal, and if not, compute a first upper bound
     if indexFirstNotAssignedOV <= prob.nbVar # at least one object is assigned to zero
         # we can set the upper bound by adding the portion of the next item that can fit inside the knapsack
         ub = lb + (weightRemaining / prob.constraint.weights[p[indexFirstNotAssignedOV]]) * prob.objs[1].profits[p[indexFirstNotAssignedOV]]

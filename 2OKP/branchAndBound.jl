@@ -21,7 +21,7 @@ function weightedScalarRelax(prob::Problem, λ::Vector{Float64})
     @assert length(λ) == prob.nbObj "Le vecteur λ ne convient pas"
 
     obj = Vector{Float64}(undef, prob.nbVar) # new merged objective
-    # GOAL : calculate the coef of each variable in the new objective by merging all the objectives
+    # GOAL : compute the coef of each variable in the new objective by merging all the objectives
     for iterVar = 1:prob.nbVar
         obj[iterVar] = sum([λ[iter] * prob.objs[iter].profits[iterVar] for iter = 1:prob.nbObj])
     end
@@ -39,7 +39,7 @@ end
 """
 function evaluate(prob::Problem, x::Vector{Bool})
     y = zeros(Float64, prob.nbObj)
-    # GOAL : calculate the image of x by prob
+    # GOAL : computing the image of x by prob
     for iterObj = 1:prob.nbObj
         for iter = 1:prob.nbVar
             if x[iter]
@@ -244,16 +244,16 @@ end
 """
 function branchAndBound(prob::Problem, assignment::Vector{Int}, assignmentWeight::Float64, assignmentProfit::Vector{Float64}, S::Vector{Solution}, consecutiveSet::Vector{Tuple{Solution, Solution}}, indEndAssignment::Int = 0, ϵ::Float64 =0.01; verbose = false)
 
-    #Arranger pour un sous problème
+    # computing the dichotomy for : LB, UB and consecutivePointsSet
     lowerBoundSub, consecutivePointSub, upperBoundSub = computeBoundDicho(prob, assignment, indEndAssignment, assignmentWeight, assignmentProfit, ϵ, verbose = verbose)
 
+    # computing the 
     fathomed::Fathomed = whichFathomed(upperBoundSub, lowerBoundSub, S, consecutiveSet)
 
     if fathomed != dominance && fathomed != infeasibility
         updateBounds!(S, consecutiveSet, lowerBoundSub)
     end
-    if fathomed == none && indEndAssignment<prob.nbVar
-        A0, A1 = newAssignments(assignment,indEndAssignment+1) # creating the two assignments for the subproblems : A0 is a copy, A1 == assignment
+    if fathomed == none && indEndAssignment<prob.nbVarconverting items of S into solutions
         verbose && println("Branch and Bound sur la variable $(indEndAssignment+1), on la fixe à 0")
         branchAndBound(prob, A0, assignmentWeight, assignmentProfit, S, consecutiveSet, indEndAssignment+1, ϵ, verbose = verbose) # exploring the first subproblem
         verbose && println()
