@@ -545,7 +545,7 @@ function solve1OKPMain(prob::Problem, assignment::Vector{Int} = Vector{Int}(), i
     # if the assignment is empty, we initialize the array at a size of nbVars in prob
     if assignment == []
         verbose && println("[END - solve1OKPMain]")
-        return solve1OKPAux(prob,assignment,indEndAssignment,assignmentWeight,assignmentProfit,verbose=verbose)
+        return solve1OKPAux(prob, verbose = verbose)
     else
         # creation of the subproblem
         subProb = createSubProblem(prob,assignment,assignmentWeight, indEndAssignment, verbose=verbose)
