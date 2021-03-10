@@ -523,8 +523,8 @@ end
     Transform the problem into a subproblem and call solve1OKPAux on it
 
     @prob : 1OKP to solve (the sub problems have the same number of variables)
-    @assignment : array of assignments (of length n) (ordered)
-    @indEndAssignment : index of the last assigned variable (ordered)
+    @assignment : array of assignments (of length n) (not ordered)
+    @indEndAssignment : index of the last assigned variable (not ordered)
     @assignmentWeight : the sum of the weights of the variables assigned to one
     @assignmentProfit : the sum of the profits of the variables assigned to one
 """
