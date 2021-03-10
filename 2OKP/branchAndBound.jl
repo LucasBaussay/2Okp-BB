@@ -253,7 +253,8 @@ function branchAndBound(prob::Problem, assignment::Vector{Int}, assignmentWeight
     if fathomed != dominance && fathomed != infeasibility
         updateBounds!(S, consecutiveSet, lowerBoundSub)
     end
-    if fathomed == none && indEndAssignment<prob.nbVar
+    if fathomed == none && indE
+        A0, A1 = newAssignments(assignment, indEndAssigment+1)
         verbose && println("Branch and Bound sur la variable $(indEndAssignment+1), on la fixe à 0")
         branchAndBound(prob, A0, assignmentWeight, assignmentProfit, S, consecutiveSet, indEndAssignment+1, ϵ, verbose = verbose) # exploring the first subproblem
         verbose && println()
