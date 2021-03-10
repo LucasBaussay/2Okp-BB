@@ -247,13 +247,13 @@ function branchAndBound(prob::Problem, assignment::Vector{Int}, assignmentWeight
     # computing the dichotomy for : LB, UB and consecutivePointsSet
     lowerBoundSub, consecutivePointSub, upperBoundSub = computeBoundDicho(prob, assignment, indEndAssignment, assignmentWeight, assignmentProfit, ϵ, verbose = verbose)
 
-    # computing the 
+    # computing the type of pruning for the subproblem
     fathomed::Fathomed = whichFathomed(upperBoundSub, lowerBoundSub, S, consecutiveSet)
 
     if fathomed != dominance && fathomed != infeasibility
         updateBounds!(S, consecutiveSet, lowerBoundSub)
     end
-    if fathomed == none && indEndAssignment<prob.nbVarconverting items of S into solutions
+    if fathomed == none && indEndAssignment<prob.nbVar
         verbose && println("Branch and Bound sur la variable $(indEndAssignment+1), on la fixe à 0")
         branchAndBound(prob, A0, assignmentWeight, assignmentProfit, S, consecutiveSet, indEndAssignment+1, ϵ, verbose = verbose) # exploring the first subproblem
         verbose && println()
