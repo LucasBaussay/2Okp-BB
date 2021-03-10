@@ -261,110 +261,6 @@ function createSubProblem(prob::Problem, assignment::Vector{Int}, indEndAssignme
 end
 
 """
-    solve1OKPAux(prob::Problem, assignment::Vector{Int}, indEndAssignment::Int = 0, assignmentWeight::Float64 = 0., assignmentProfit::Float64 = 0.; verbose = false)
-
-    Solve the 1OKP
-
-    [PARAMETERS]
-
-    @prob : 1OKP to solve
-    {
-        @prob.nbObjs : always the same as the superProblem
-        @prob.nbVars : number of vars of the subProblem and not the superProblem
-        @prob.objs : vector of the objectives of the subProblem. Each objective is adapted to the subProblem (same number of variables)
-        @prob.constraint : constraint of the subProblem, not the same as the superProblem
-        {
-            @prob.constraint.maxWeight : equal to maxWeight of the superP minus the assignmentWeight !
-            @prob.constraint.weights : adapted to the subProblem, less variables.
-        }
-    }
-    @assignment : array of assignments (of length the original number of variables), indicating the values of the previous variables (non ordered)
-    @indEndAssignment : index of the last assigned variable (non ordered)
-    @assignmentWeight : the sum of the weights of the variables assigned to one
-    @assignmentProfit : the sum of the profits of the variables assigned to one
-
-    [VARIABLES]
-
-    @p : permutation to order variables. p[1] indicate the first best variable.
-    @revP : inverse permutation of p.
-    @weightRemaining : weight remaining in the bag (take into account the assignment weight of course)
-    @bestSolPrim : current best primal solution (indexed on ordered variables) : bestSolPrim[1] targets the first best variable.
-    @iterLastOne : index (ordered) of the last variable assigned to one in @bestSolPrim
-    @indexFirstNotAssignedOV : index (ordered) of the first variable not assigned
-"""
-function solve1OKPAux(prob::Problem, assignment::Vector{Int}, indEndAssignment::Int = 0, assignmentWeight::Float64 = 0., assignmentProfit::Float64 = 0.; verbose = false)
-    verbose && println("[solve1OKPMain]")
-    # permutation list sorting the variables. Beginning with the best ones, ending with worsts.
-    # usage : p[1] gives the index of the first best variable
-    p = sortperm(prob.objs[1].profits ./ prob.constraint.weights, rev = true)
-    # inverse permutation list allowing to get back to the original indexes of the variables
-    revP = revPerm(p)
-
-    lb = 0. + assignmentProfit # profit we are sure to make because the solution is feasible
-    ub = Inf
-
-    weightRemaining = prob.constraint.maxWeight
-
-    """
-
-    Construction of a good first feasible solution being our LowerBound. We calculate our UpperBound by adding a portion of the next item.
-
-    """
-
-    bestSolPrim = zeros(Bool, prob.nbVar) # current best primal solution (indexed on ordered variables) : bestSolPrim[1] targets the first best variable.
-    indexFirstNotAssignedOV = 1 # index (ordered) of the first variable not assigned
-    iterLastOne = 0 # index (ordered) of the last variable assigned to one in @bestSolPrim
-    # GOAL : inside bestSolPrim, we want to force to one all the first variables (ordered) that could fit in the knapsack
-    # iterating on the best variables first. We stop if we can't assign the next variable to one.
-    while indexFirstNotAssignedOV <= prob.nbVar && prob.constraint.weights[p[indexFirstNotAssignedOV]] <= weightRemaining
-        orderedVar = p[indexFirstNotAssignedOV] # index of the variable (ordered)
-        bestSolPrim[indexFirstNotAssignedOV] = 1 # we put the variable to one in the current solution
-        weightRemaining -= prob.constraint.weights[orderedVar] # we substract the weight (non ordered) of the variable that we assigned to one
-        lb += prob.objs[1].profits[orderedVar] # we add to the primal bound the profit of var
-        iterLastOne = indexFirstNotAssignedOV # update iterLastOne
-        indexFirstNotAssignedOV += 1
-    end
-
-    # GOAL : check if bestSolPrim is optimal, and if not, calculate a first upper bound
-    if indexFirstNotAssignedOV <= prob.nbVar # at least one object is assigned to zero
-        # we can set the upper bound by adding the portion of the next item that can fit inside the knapsack
-        ub = lb + (weightRemaining / prob.constraint.weights[p[indexFirstNotAssignedOV]]) * prob.objs[1].profits[p[indexFirstNotAssignedOV]]
-    else # all the variables are assigned to one
-        # bestSolPrim is optimal
-        verbose && println("[END - solve1OKPAux]")
-        return reconstructSuperSolution(Solution(bestSolPrim[revP], [lb]), assignment, indEndAssignment, assignmentProfit, verbose=verbose)
-    end
-
-    # GOAL : we finish to go through variables and try to put as many to one.
-    # iterating on remaining variables (ordered), we stop if we don't have any space remaining in the bag
-    while indexFirstNotAssignedOV <= prob.nbVar && weightRemaining > 0
-        orderedVar = p[indexFirstNotAssignedOV] # index of the variable (non ordered)
-        if prob.constraint.weights[orderedVar] <= weightRemaining # if the current var fits in the bag
-            bestSolPrim[indexFirstNotAssignedOV] = 1 # assigning the var to one
-            weightRemaining -= prob.constraint.weights[orderedVar] # updating the remaining space in the bag
-            lb += prob.objs[1].profits[orderedVar] # updating the lower bound because we added a variable
-            iterLastOne = indexFirstNotAssignedOV # updating iterLastOne
-        end
-        indexFirstNotAssignedOV += 1
-    end
-
-    """
-
-    Backtracking or End
-
-    """
-
-    if iterLastOne >= 1 # we'll begin the backtracking after the assignment
-        sol, lb = backtrackJules(prob, p, revP, iterLastOne, bestSolPrim, lb, weightRemaining, lb, bestSolPrim[1:end], ub, verbose = verbose)
-        verbose && println("[END - solve1OKPAux]")
-        return reconstructSuperSolution(Solution(sol[revP], [lb]), assignment, indEndAssignment, assignmentProfit, verbose=verbose)
-    else # the backtrack is useless
-        verbose && println("[END - solve1OKPAux]")
-        return reconstructSuperSolution(Solution(bestSolPrim[revP], [lb]), assignment, indEndAssignment, assignmentProfit, verbose=verbose)
-    end
-end
-
-"""
     returns the solution of the initial super problem, from a given solution and assignment for a subProblem
 """
 function reconstructSuperSolution(solution::Solution, assignment::Vector{Int}, indEndAssignment::Int, assignmentProfit::Float64; verbose = false)
@@ -387,34 +283,6 @@ function reconstructSuperSolution(solution::Solution, assignment::Vector{Int}, i
     else
         verbose && println("[END - reconstructSuperSolution]")
         return solution
-    end
-end
-
-"""
-    solve1OKPMain(prob::Problem, assignment::Vector{Int} = Vector{Int}(), indEndAssignment::Int = 0, assignmentWeight::Float64 = 0., assignmentProfit::Float64 = 0.; verbose = false)
-
-    Transform the problem into a subproblem and call solve1OKPAux on it
-
-    @prob : 1OKP to solve (the sub problems have the same number of variables)
-    @assignment : array of assignments (of length n) (ordered)
-    @indEndAssignment : index of the last assigned variable (ordered)
-    @assignmentWeight : the sum of the weights of the variables assigned to one
-    @assignmentProfit : the sum of the profits of the variables assigned to one
-"""
-function solve1OKPMain(prob::Problem, assignment::Vector{Int} = Vector{Int}(), indEndAssignment::Int = 0, assignmentWeight::Float64 = 0., assignmentProfit::Float64 = 0.; verbose = false)
-    @assert prob.nbObj == 1 "This problem is no 1OKP"
-    verbose && println("[solve1OKPMain]")
-
-    # if the assignment is empty, we initialize the array at a size of nbVars in prob
-    if assignment == []
-        verbose && println("[END - solve1OKPMain]")
-        return solve1OKPAux(prob,assignment,indEndAssignment,assignmentWeight,assignmentProfit,verbose=verbose)
-    else
-        # creation of the subproblem
-        subProb = createSubProblem(prob,assignment,indEndAssignment, verbose=verbose)
-        print(subProb)
-        verbose && println("[END - solve1OKPMain]")
-        return solve1OKPAux(prob,assignment,indEndAssignment,assignmentWeight,assignmentProfit,verbose=verbose)
     end
 end
 
@@ -545,6 +413,134 @@ function backtrackJules(prob::Problem, p::Vector{Int}, revP::Vector{Int}, indexO
     end
 end
 
-function branchAndBoundJules(prob::Problem, p::Vector{Int}, revP::Vector{Int}, indexOnOrdered::Int, bestSolPrim::Vector{Bool}, currentLB::Float64, weightRemaining::Float64, lb::Float64, ub::Float64; verbose = false)
+"""
+    solve1OKPAux(prob::Problem, assignment::Vector{Int}, indEndAssignment::Int = 0, assignmentWeight::Float64 = 0., assignmentProfit::Float64 = 0.; verbose = false)
 
+    Solve the 1OKP
+
+    [PARAMETERS]
+
+    @prob : 1OKP to solve
+    {
+        @prob.nbObjs : always the same as the superProblem
+        @prob.nbVars : number of vars of the subProblem and not the superProblem
+        @prob.objs : vector of the objectives of the subProblem. Each objective is adapted to the subProblem (same number of variables)
+        @prob.constraint : constraint of the subProblem, not the same as the superProblem
+        {
+            @prob.constraint.maxWeight : equal to maxWeight of the superP minus the assignmentWeight !
+            @prob.constraint.weights : adapted to the subProblem, less variables.
+        }
+    }
+    @assignment : array of assignments (of length the original number of variables), indicating the values of the previous variables (non ordered)
+    @indEndAssignment : index of the last assigned variable (non ordered)
+    @assignmentWeight : the sum of the weights of the variables assigned to one
+    @assignmentProfit : the sum of the profits of the variables assigned to one
+
+    [VARIABLES]
+
+    @p : permutation to order variables. p[1] indicate the first best variable.
+    @revP : inverse permutation of p.
+    @weightRemaining : weight remaining in the bag (take into account the assignment weight of course)
+    @bestSolPrim : current best primal solution (indexed on ordered variables) : bestSolPrim[1] targets the first best variable.
+    @iterLastOne : index (ordered) of the last variable assigned to one in @bestSolPrim
+    @indexFirstNotAssignedOV : index (ordered) of the first variable not assigned
+"""
+function solve1OKPAux(prob::Problem, assignment::Vector{Int}, indEndAssignment::Int = 0, assignmentWeight::Float64 = 0., assignmentProfit::Float64 = 0.; verbose = false)
+verbose && println("[solve1OKPMain]")
+    # permutation list sorting the variables. Beginning with the best ones, ending with worsts.
+    # usage : p[1] gives the index of the first best variable
+    p = sortperm(prob.objs[1].profits ./ prob.constraint.weights, rev = true)
+    # inverse permutation list allowing to get back to the original indexes of the variables
+    revP = revPerm(p)
+
+    lb = 0. + assignmentProfit # profit we are sure to make because the solution is feasible
+    ub = Inf
+
+    weightRemaining = prob.constraint.maxWeight
+
+    """
+
+    Construction of a good first feasible solution being our LowerBound. We calculate our UpperBound by adding a portion of the next item.
+
+    """
+
+    bestSolPrim = zeros(Bool, prob.nbVar) # current best primal solution (indexed on ordered variables) : bestSolPrim[1] targets the first best variable.
+    indexFirstNotAssignedOV = 1 # index (ordered) of the first variable not assigned
+    iterLastOne = 0 # index (ordered) of the last variable assigned to one in @bestSolPrim
+    # GOAL : inside bestSolPrim, we want to force to one all the first variables (ordered) that could fit in the knapsack
+    # iterating on the best variables first. We stop if we can't assign the next variable to one.
+    while indexFirstNotAssignedOV <= prob.nbVar && prob.constraint.weights[p[indexFirstNotAssignedOV]] <= weightRemaining
+        orderedVar = p[indexFirstNotAssignedOV] # index of the variable (ordered)
+        bestSolPrim[indexFirstNotAssignedOV] = 1 # we put the variable to one in the current solution
+        weightRemaining -= prob.constraint.weights[orderedVar] # we substract the weight (non ordered) of the variable that we assigned to one
+        lb += prob.objs[1].profits[orderedVar] # we add to the primal bound the profit of var
+        iterLastOne = indexFirstNotAssignedOV # update iterLastOne
+        indexFirstNotAssignedOV += 1
+    end
+
+    # GOAL : check if bestSolPrim is optimal, and if not, calculate a first upper bound
+    if indexFirstNotAssignedOV <= prob.nbVar # at least one object is assigned to zero
+        # we can set the upper bound by adding the portion of the next item that can fit inside the knapsack
+        ub = lb + (weightRemaining / prob.constraint.weights[p[indexFirstNotAssignedOV]]) * prob.objs[1].profits[p[indexFirstNotAssignedOV]]
+    else # all the variables are assigned to one
+        # bestSolPrim is optimal
+        verbose && println("[END - solve1OKPAux]")
+        return reconstructSuperSolution(Solution(bestSolPrim[revP], [lb]), assignment, indEndAssignment, assignmentProfit, verbose=verbose)
+    end
+
+    # GOAL : we finish to go through variables and try to put as many to one.
+    # iterating on remaining variables (ordered), we stop if we don't have any space remaining in the bag
+    while indexFirstNotAssignedOV <= prob.nbVar && weightRemaining > 0
+        orderedVar = p[indexFirstNotAssignedOV] # index of the variable (non ordered)
+        if prob.constraint.weights[orderedVar] <= weightRemaining # if the current var fits in the bag
+            bestSolPrim[indexFirstNotAssignedOV] = 1 # assigning the var to one
+            weightRemaining -= prob.constraint.weights[orderedVar] # updating the remaining space in the bag
+            lb += prob.objs[1].profits[orderedVar] # updating the lower bound because we added a variable
+            iterLastOne = indexFirstNotAssignedOV # updating iterLastOne
+        end
+        indexFirstNotAssignedOV += 1
+    end
+
+    """
+
+    Backtracking or End
+
+    """
+
+    if iterLastOne >= 1 # we'll begin the backtracking after the assignment
+        sol, lb = backtrackJules(prob, p, revP, iterLastOne, bestSolPrim, lb, weightRemaining, lb, bestSolPrim[1:end], ub, verbose = verbose)
+        verbose && println("[END - solve1OKPAux]")
+        return reconstructSuperSolution(Solution(sol[revP], [lb]), assignment, indEndAssignment, assignmentProfit, verbose=verbose)
+    else # the backtrack is useless
+        verbose && println("[END - solve1OKPAux]")
+        return reconstructSuperSolution(Solution(bestSolPrim[revP], [lb]), assignment, indEndAssignment, assignmentProfit, verbose=verbose)
+    end
+end
+
+"""
+    solve1OKPMain(prob::Problem, assignment::Vector{Int} = Vector{Int}(), indEndAssignment::Int = 0, assignmentWeight::Float64 = 0., assignmentProfit::Float64 = 0.; verbose = false)
+
+    Transform the problem into a subproblem and call solve1OKPAux on it
+
+    @prob : 1OKP to solve (the sub problems have the same number of variables)
+    @assignment : array of assignments (of length n) (ordered)
+    @indEndAssignment : index of the last assigned variable (ordered)
+    @assignmentWeight : the sum of the weights of the variables assigned to one
+    @assignmentProfit : the sum of the profits of the variables assigned to one
+"""
+function solve1OKPMain(prob::Problem, assignment::Vector{Int} = Vector{Int}(), indEndAssignment::Int = 0, assignmentWeight::Float64 = 0., assignmentProfit::Float64 = 0.; verbose = false)
+    @assert prob.nbObj == 1 "This problem is no 1OKP"
+    verbose && println("[solve1OKPMain]")
+
+    # if the assignment is empty, we initialize the array at a size of nbVars in prob
+    if assignment == []
+        verbose && println("[END - solve1OKPMain]")
+        return solve1OKPAux(prob,assignment,indEndAssignment,assignmentWeight,assignmentProfit,verbose=verbose)
+    else
+        # creation of the subproblem
+        subProb = createSubProblem(prob,assignment,indEndAssignment, verbose=verbose)
+        print(subProb)
+        verbose && println("[END - solve1OKPMain]")
+        return solve1OKPAux(prob,assignment,indEndAssignment,assignmentWeight,assignmentProfit,verbose=verbose)
+    end
 end
