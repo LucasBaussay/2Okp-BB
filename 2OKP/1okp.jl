@@ -319,7 +319,7 @@ function backtrackJules(prob::Problem, p::Vector{Int}, revP::Vector{Int}, indexO
 
     if indexOnOrdered == 0 || lb == ub # stopping rule, end of study or optimality
     verbose && println("[END - backtrackJules]")
-        return solLB, lb
+        return solLB, lb # returns the best solution known (which is always the optimal solution)
     elseif bestSolPrim[indexOnOrdered] == 0 # we can't test anything here because the item is not assigned to one, we backtrackJules with indexOnOrdered-1
         verbose && println("[RECURSIVE CALL - backtrackJules]")
         return backtrackJules(prob, p, revP, indexOnOrdered-1, bestSolPrim, currentLB, weightRemaining, lb, solLB, ub, verbose = verbose)
@@ -391,7 +391,7 @@ function backtrackJules(prob::Problem, p::Vector{Int}, revP::Vector{Int}, indexO
 
                 verbose && println("\n- Update time(lb,bestSolPrim,indexOnOrdered,weightRemaining")
                 lb = currentProfit # updating lb
-                solLB = bestSolPrim[1:end]
+                solLB = bestSolPrim[1:end] # updating the best known solution
 
                 # we start a new backtrack, starting from the last one value
                 verbose && println("[RECURSIVE CALL - backtrackJules]")

@@ -12,15 +12,15 @@ include("1okp.jl")
 """
 
 """
-    return the λ scalarization of the problem prob
+    return the λ scalarization of the given problem prob
 
     @prob : MOKP
-    @λ : Vector{Float64}
+    @λ : Vector{Float64}    
 """
 function weightedScalarRelax(prob::Problem, λ::Vector{Float64})
     @assert length(λ) == prob.nbObj "Le vecteur λ ne convient pas"
 
-    obj = Vector{Float64}(undef, prob.nbVar)
+    obj = Vector{Float64}(undef, prob.nbVar) # new merged objective
     # GOAL : calculate the coef of each variable in the new objective by merging all the objectives
     for iterVar = 1:prob.nbVar
         obj[iterVar] = sum([λ[iter] * prob.objs[iter].profits[iterVar] for iter = 1:prob.nbObj])
@@ -51,7 +51,9 @@ function evaluate(prob::Problem, x::Vector{Bool})
     return Solution(x, y)
 end
 
-# return the way the subproblem is fathomed : none, infeasibility, optimality, dominance
+"""
+    return the way the subproblem is fathomed : none, infeasibility, optimality, dominance
+"""
 function whichFathomed(upperBound::DualSet, lowerBound::Vector{Solution}, S::Vector{Solution}, consecutivePoint::Vector{Tuple{Solution, Solution}})
     noNadirUnderUB = true # becomes false if we found a nadir point under the upperBound
 
@@ -83,11 +85,13 @@ function whichFathomed(upperBound::DualSet, lowerBound::Vector{Solution}, S::Vec
     end
 end
 
-# update upper et lower bound sets according to the new feasible subproblem
+"""
+    update upper et lower bound sets according to the new feasible subproblem
+"""
 function updateBounds!(S::Vector{Solution}, consecutiveSet::Vector{Tuple{Solution, Solution}}, lowerBoundSub::Vector{Solution})
 
     indSuppr       = Vector{Int}(undef, length(consecutiveSet))
-    indFinIndSuppr = 0
+    indEndIndSuppr = 0
 
     for subSol in lowerBoundSub
         for iter = 1:length(consecutiveSet)
@@ -97,15 +101,15 @@ function updateBounds!(S::Vector{Solution}, consecutiveSet::Vector{Tuple{Solutio
                 push!(consecutiveSet, (solR, subSol))
                 push!(consecutiveSet, (subSol, solL))
 
-                indFinIndSuppr += 1
-                indSuppr[indFinIndSuppr] = iter
+                indEndIndSuppr += 1
+                indSuppr[indEndIndSuppr] = iter
             end
         end
-        for iter = 1:indFinIndSuppr
+        for iter = 1:indEndIndSuppr
             deleteat!(consecutiveSet, indSuppr[iter]-iter+1)
         end
         indSuppr = Vector{Int}(undef, length(consecutiveSet))
-        indFinIndSuppr = 0
+        indEndIndSuppr = 0
     end
 end
 
