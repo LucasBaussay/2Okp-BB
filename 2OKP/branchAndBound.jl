@@ -21,7 +21,7 @@ function weightedScalarRelax(prob::Problem, λ::Vector{Float64})
     @assert length(λ) == prob.nbObj "Le vecteur λ ne convient pas"
 
     obj = Vector{Float64}(undef, prob.nbVar) # new merged objective
-    # GOAL : calculate the coef of each variable in the new objective by merging all the objectives
+    # GOAL : compute the coef of each variable in the new objective by merging all the objectives
     for iterVar = 1:prob.nbVar
         obj[iterVar] = sum([λ[iter] * prob.objs[iter].profits[iterVar] for iter = 1:prob.nbObj])
     end
@@ -39,7 +39,7 @@ end
 """
 function evaluate(prob::Problem, x::Vector{Bool})
     y = zeros(Float64, prob.nbObj)
-    # GOAL : calculate the image of x by prob
+    # GOAL : computing the image of x by prob
     for iterObj = 1:prob.nbObj
         for iter = 1:prob.nbVar
             if x[iter]
@@ -200,7 +200,7 @@ function computeBoundDicho(prob::Problem, assignment::Vector{Int}, indEndAssignm
             solE = evaluate(prob, solE.x)
 
             """ SEE BELOW ??? """
-            if sum(λ .* solE.y) > sum(λ .* solR.y) # solE is better than solR according λ
+            if sum(λ .* solE.y) > sum(λ .* solR.y) # solE is better than solR according to λ
                 push!(XSEm, solE) # solE is solution we want
                 push!(S, (solR, solE), (solE, solL)) # now we need to study (solR, solE) and (solE, solL)
                 verbose && println("On a trouvé la solution : $(solE.y)")
@@ -244,16 +244,16 @@ end
 """
 function branchAndBound(prob::Problem, assignment::Vector{Int}, assignmentWeight::Float64, assignmentProfit::Vector{Float64}, S::Vector{Solution}, consecutiveSet::Vector{Tuple{Solution, Solution}}, indEndAssignment::Int = 0, ϵ::Float64 =0.01; verbose = false)
 
-    #Arranger pour un sous problème
+    # computing the dichotomy for : LB, UB and consecutivePointsSet
     lowerBoundSub, consecutivePointSub, upperBoundSub = computeBoundDicho(prob, assignment, indEndAssignment, assignmentWeight, assignmentProfit, ϵ, verbose = verbose)
 
+    # computing the type of pruning for the subproblem
     fathomed::Fathomed = whichFathomed(upperBoundSub, lowerBoundSub, S, consecutiveSet)
 
     if fathomed != dominance && fathomed != infeasibility
         updateBounds!(S, consecutiveSet, lowerBoundSub)
     end
     if fathomed == none && indEndAssignment<prob.nbVar
-        A0, A1 = newAssignments(assignment,indEndAssignment+1) # creating the two assignments for the subproblems : A0 is a copy, A1 == assignment
         verbose && println("Branch and Bound sur la variable $(indEndAssignment+1), on la fixe à 0")
         branchAndBound(prob, A0, assignmentWeight, assignmentProfit, S, consecutiveSet, indEndAssignment+1, ϵ, verbose = verbose) # exploring the first subproblem
         verbose && println()
@@ -312,7 +312,7 @@ function main_BranchandBound(prob::Problem, orderName = "random", ϵ::Float64 = 
     # computing the branch and bound
     branchAndBound(auxProb, assignment, 0., zeros(Float64, prob.nbObj),  S, consecutivePoints, 0, ϵ, verbose = verbose)
 
-    # converting items of S into solutions
+    # reorder variables inside items of S
     S = broadcast(sol->Solution(sol.x[revPermVect], sol.y), S)
 
     return S
