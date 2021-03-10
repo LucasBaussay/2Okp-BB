@@ -1,3 +1,26 @@
+
+"""
+    calculateUtility(weights::Vector{Float64}, objs::Vector{Obj})
+
+    returns the utility "profit/weight" for both the objectives, for the variables
+"""
+function calculateUtility(weights::Vector{Float64}, objs::Vector{Obj})
+    utility1 = zeros(length(weights))
+    utility2 = zeros(length(weights))
+
+    for iter = 1:length(weights)
+        utility1[iter] = objs[1].profits[iter]/weights[iter]
+        utility2[iter] = objs[2].profits[iter]/weights[iter]
+    end
+
+    return(utility1, utility2)
+end
+
+"""
+    permOrder(prob::Problem, order::String = "random")
+
+    returns the permutation vector to order variables according to the given order. A reverse permutation vector is returned too.
+"""
 function permOrder(prob::Problem, order::String = "random")
 
     @assert prob.nbObj == 2 "This problem is 20KP"
@@ -49,20 +72,4 @@ function permOrder(prob::Problem, order::String = "random")
     end
     
     return(perm, revPerm)
-
-end
-
-
-function calculateUtility(weights::Vector{Float64}, objs::Vector{Obj})
-
-utility1 = zeros(length(weights))
-utility2 = zeros(length(weights))
-
-        for iter = 1:length(weights)
-            utility1[iter] = objs[1].profits[iter]/weights[iter]
-            utility2[iter] = objs[2].profits[iter]/weights[iter]
-        end
-
-    return(utility1, utility2)
-
 end

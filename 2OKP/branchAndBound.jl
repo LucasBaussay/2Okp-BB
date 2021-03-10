@@ -291,21 +291,28 @@ end
     main_BranchandBound(prob::Problem, orderName = "random", ϵ::Float64 = 0.01 ; verbose = false)
 
     returns the set of non dominated points coputed with the multi objective branch and bound
+
+    @S : XSEm at first, then completed with the branch and bound to become XE
+    @consecutivePoints = vector of tiples of consecutive points (the points are the points in S)
 """
 function main_BranchandBound(prob::Problem, orderName = "random", ϵ::Float64 = 0.01 ; verbose = false)
 
-    permVect, revPermVect = permOrder(prob, orderName)
-    auxProb = reorderVariable(prob, permVect)
+    permVect, revPermVect = permOrder(prob, orderName) # order variables accordingly
+    auxProb = reorderVariable(prob, permVect) # creating the new ordered problem
 
-    S, consecutivePoint, weDontNeedItHere = computeBoundDicho(auxProb, Vector{Int}(), 0, 0., zeros(Float64, prob.nbObj), ϵ, verbose = verbose)
+    # computing a first dichotomy to obtain a lower bound (the XSEm set, here S)
+    S, consecutivePoints = computeBoundDicho(auxProb, Vector{Int}(), 0, 0., zeros(Float64, prob.nbObj), ϵ, verbose = verbose)[1:2]
 
+    # initializing the assignment vector
     assignment = Vector{Int}(undef, prob.nbVar)
     for iter=1:prob.nbVar
         assignment[iter] = -1
     end
 
-    branchAndBound(auxProb, assignment, 0., zeros(Float64, prob.nbObj),  S, consecutivePoint, 0, ϵ, verbose = verbose)
+    # computing the branch and bound
+    branchAndBound(auxProb, assignment, 0., zeros(Float64, prob.nbObj),  S, consecutivePoints, 0, ϵ, verbose = verbose)
 
+    # converting items of S into solutions
     S = broadcast(sol->Solution(sol.x[revPermVect], sol.y), S)
 
     return S
