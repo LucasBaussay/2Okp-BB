@@ -250,7 +250,7 @@ function branchAndBound(prob::Problem, assignment::Vector{Int}, assignmentWeight
     # computing the type of pruning for the subproblem
     fathomed::Fathomed = whichFathomed(upperBoundSub, lowerBoundSub, S, consecutiveSet)
 
-    if fathomed != dominance && fathomed != infeasibility
+    if fathomed == optimality
         updateBounds!(S, consecutiveSet, lowerBoundSub)
     end
     if fathomed == none && indE
