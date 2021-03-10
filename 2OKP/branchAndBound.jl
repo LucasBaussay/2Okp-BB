@@ -87,34 +87,47 @@ end
 
 """
     update upper et lower bound sets according to the new feasible subproblem
+
+    @S : Solution
+    @consecutiveSet : Set of tuples of consecutive points
+    @lowerBoundSub : Lower bound set for the subproblem
 """
+
+""" LUCAS J'AI DES QUESTIONS SUR LA METHODE GENERALE ???"""
 function updateBounds!(S::Vector{Solution}, consecutiveSet::Vector{Tuple{Solution, Solution}}, lowerBoundSub::Vector{Solution})
 
+    # variables used to memorize where to delete items in consecutiveSet (points that are no longer consecutive because we added some points between them)
     indSuppr       = Vector{Int}(undef, length(consecutiveSet))
     indEndIndSuppr = 0
 
     for subSol in lowerBoundSub
         for iter = 1:length(consecutiveSet)
             solR, solL = consecutiveSet[iter]
-            if subSol.y[1] > min(solR.y[1], solL.y[1]) && subSol.y[2] > min(solR.y[2], solL.y[2])
-                push!(S, subSol)
-                push!(consecutiveSet, (solR, subSol))
+            if subSol.y[1] > min(solR.y[1], solL.y[1]) && subSol.y[2] > min(solR.y[2], solL.y[2]) # subSol dominates the nadir point of solR and solL
+                push!(S, subSol) # subSol is a solution
+                push!(consecutiveSet, (solR, subSol)) # we update consecutiveSet
                 push!(consecutiveSet, (subSol, solL))
 
                 indEndIndSuppr += 1
                 indSuppr[indEndIndSuppr] = iter
             end
         end
+        # now deleting the previous consecutive points that are no longer consecutive 
         for iter = 1:indEndIndSuppr
             deleteat!(consecutiveSet, indSuppr[iter]-iter+1)
         end
-        indSuppr = Vector{Int}(undef, length(consecutiveSet))
+        # reinitializing the variables
+        indSuppr = Vector{Int}(undef, length(consecutiveSet)) # maybe there is a better way of doing the initialization... idk
         indEndIndSuppr = 0
     end
 end
 
-# return a tuple of the two vectors : assignments for the two subproblems
+"""
+    return a tuple of the two vectors : assignments for the two subproblems.
+    For the first (copyA), the variable i has been assigned to zero, for the second (A), i has been assigned to one
+"""
 function newAssignments(A::Vector{Int},i::Int)
+    """ VRAIE COPIE ????"""
     copyA = A[1:end]
     copyA[i] = 0
     A[i] = 1
@@ -127,56 +140,75 @@ end
 
 """
 
-function computeBoundDicho(prob::Problem, assignment::Vector{Int}, indAssignment::Int, assignmentWeight::Float64, assignmentProfit::Vector{Float64}, ϵ::Float64; verbose = false)
+"""
+    computes bound dicho
 
-    XSEm = Vector{Solution}()
-    consecutiveSet = Vector{Tuple{Solution, Solution}}()
-    S = Vector{Tuple{Solution, Solution}}()
+    @prob : current problem
+    @assignment : assignment of variables (non ordered) (length = nbVars)
+    @indEndAssignment : index of the the last variable (non ordered) assigned in the problem
+    @assignmentWeight : sum of the weights of the variables assigned to one
+    @assignmentProfit : sum of the profits of the variables assigned to one
+    @ϵ : small value to compute the vector lambda and compute the weighted scalarization
 
-    sol1 = solve1OKP(weightedScalarRelax(prob, [1., ϵ]), assignment, indAssignment, assignmentWeight, sum([1., ϵ] .* assignmentProfit), verbose = verbose)
-    sol2 = solve1OKP(weightedScalarRelax(prob, [ϵ, 1.]), assignment, indAssignment, assignmentWeight, sum([ϵ, 1.] .* assignmentProfit), verbose = verbose)
+    @XSEm - Vector of solutions : memorize all the supported efficient and extreme solutions
+    @consecutiveSet : memorize tuples of points that are consecutive
+    @S : Queue of tuples of consecutive points to study
+"""
+function computeBoundDicho(prob::Problem, assignment::Vector{Int}, indEndAssignment::Int, assignmentWeight::Float64, assignmentProfit::Vector{Float64}, ϵ::Float64; verbose = false)
 
+    XSEm = Vector{Solution}() # memorize all the supported efficient and extreme solutions
+    consecutiveSet = Vector{Tuple{Solution, Solution}}() # memorize tuples of points that are consecutive
+    S = Vector{Tuple{Solution, Solution}}() # queue of solutions to study
+
+    # computing the two first points, sol1 is the best for the only the objective number 1, and sol2 for the objective number 2.
+    sol1 = solve1OKP(weightedScalarRelax(prob, [1., ϵ]), assignment, indEndAssignment, assignmentWeight, sum([1., ϵ] .* assignmentProfit), verbose = verbose)
+    sol2 = solve1OKP(weightedScalarRelax(prob, [ϵ, 1.]), assignment, indEndAssignment, assignmentWeight, sum([ϵ, 1.] .* assignmentProfit), verbose = verbose)
+
+    # evaluating the two sols and constructing the associated solutions
     sol1 = evaluate(prob, sol1.x)
     sol2 = evaluate(prob, sol2.x)
 
-    max1 = sol1.y[1]
-    max2 = sol2.y[2]
+    # computing the maximum of each objective
+    max1 = sol1.y[1] # maximum of objective 1
+    max2 = sol2.y[2] # maximum of objective 2
 
-    verbose && println("On créer les solution lexico : $(sol1.y) et $(sol2.y)")
+    verbose && println("On crée les solution lexico : $(sol1.y) et $(sol2.y)")
 
-    if sol1.y == sol2.y
+    if sol1.y == sol2.y # solutions are adenticals
         push!(XSEm, sol1)
-    else
-        push!(S, (sol1, sol2))
-        push!(XSEm, sol1, sol2)
+    else # solutions are different
+        push!(S, (sol1, sol2)) # we'll need to study (sol1,sol2)
+        push!(XSEm, sol1, sol2) # sol1 and sol2 are supported efficient and extreme solutions
 
-        indFunc = 1
-        while length(S) != 0
+        # goal : compute the dichotomy
+        while length(S) != 0 # while we have solutions to study
+            solR, solL = pop!(S) # get the two consecutive points from the queue of tuples to study
 
-            solR, solL = pop!(S)
             verbose && println("On étudie la paire de solution : $(solR.y) et $(solL.y)")
+            # computing the direction of the search
             λ = [solL.y[2]-solR.y[2], solR.y[1]-solL.y[1]]
-            solE = solve1OKP(weightedScalarRelax(prob, λ), assignment, indAssignment, assignmentWeight, sum(λ .* assignmentProfit), verbose = false)
-
+            # computing the resulting solution
+            solE = solve1OKP(weightedScalarRelax(prob, λ), assignment, indEndAssignment, assignmentWeight, sum(λ .* assignmentProfit), verbose = false)
             solE = evaluate(prob, solE.x)
 
-            if sum(λ .* solE.y) > sum(λ .* solR.y)
-                push!(XSEm, solE)
-                push!(S, (solR, solE), (solE, solL))
+            """ SEE BELOW ??? """
+            if sum(λ .* solE.y) > sum(λ .* solR.y) # solE is better than solR according λ
+                push!(XSEm, solE) # solE is solution we want
+                push!(S, (solR, solE), (solE, solL)) # now we need to study (solR, solE) and (solE, solL)
                 verbose && println("On a trouvé la solution : $(solE.y)")
-            else
-                push!(consecutiveSet, (solR, solL))
+            else # solE is equal to solR according to λ, so we didn't find new solutions 
+                push!(consecutiveSet, (solR, solL)) # we know we won't find solutions between solR, solL, so we memorize the tuple 
                 verbose && println("On a rien trouvé dans cette direction")
             end
-            verbose && println()
-
-            indFunc += 1
         end
     end
 
+    # GOAL : compute dual bound set
+    # we represent the dual bound set not with points because there is an infinity of them but with constraints
+    # the dual bound : A.x = B
     A = Array{Float64, 2}(undef, length(consecutiveSet) + 2, 2)
     B = Vector{Float64}(undef, length(consecutiveSet)+2)
-
+    # construction of the maxtrix A and the vector B
     for iter = 1:length(consecutiveSet)
         a, b = consecutiveSet[iter]
         a, b = a.y, b.y
@@ -186,6 +218,7 @@ function computeBoundDicho(prob::Problem, assignment::Vector{Int}, indAssignment
         B[iter] = (b[2] - a[2]) * a[1] - (b[1] - a[1]) * a[2]
     end
 
+    # finishing the computation by adding the max1, max2 values
     A[end-1, 1] = 1
     A[end-1, 2] = 0
     B[end-1] = max1
@@ -195,29 +228,28 @@ function computeBoundDicho(prob::Problem, assignment::Vector{Int}, indAssignment
     B[end] = max2
 
     return XSEm, consecutiveSet, DualSet(A, B)
-
 end
 
-function branchAndBound(prob::Problem, assignment::Vector{Int}, assignmentWeight::Float64, assignmentProfit::Vector{Float64}, S::Vector{Solution}, consecutiveSet::Vector{Tuple{Solution, Solution}}, indAssignment::Int = 0, ϵ::Float64 =0.01; verbose = false)
+function branchAndBound(prob::Problem, assignment::Vector{Int}, assignmentWeight::Float64, assignmentProfit::Vector{Float64}, S::Vector{Solution}, consecutiveSet::Vector{Tuple{Solution, Solution}}, indEndAssignment::Int = 0, ϵ::Float64 =0.01; verbose = false)
 
     #Arranger pour un sous problème
-    lowerBoundSub, consecutivePointSub, upperBoundSub = computeBoundDicho(prob, assignment, indAssignment, assignmentWeight, assignmentProfit, ϵ, verbose = verbose)
+    lowerBoundSub, consecutivePointSub, upperBoundSub = computeBoundDicho(prob, assignment, indEndAssignment, assignmentWeight, assignmentProfit, ϵ, verbose = verbose)
 
     fathomed::Fathomed = whichFathomed(upperBoundSub, lowerBoundSub, S, consecutiveSet)
 
     if fathomed != dominance && fathomed != infeasibility
         updateBounds!(S, consecutiveSet, lowerBoundSub)
     end
-    if fathomed == none && indAssignment<prob.nbVar
-        A0, A1 = newAssignments(assignment,indAssignment+1) # creating the two assignments for the subproblems : A0 is a copy, A1 == assignment
-        verbose && println("Branch and Bound sur la variable $(indAssignment+1), on la fixe à 0")
-        branchAndBound(prob, A0, assignmentWeight, assignmentProfit, S, consecutiveSet, indAssignment+1, ϵ, verbose = verbose) # exploring the first subproblem
+    if fathomed == none && indEndAssignment<prob.nbVar
+        A0, A1 = newAssignments(assignment,indEndAssignment+1) # creating the two assignments for the subproblems : A0 is a copy, A1 == assignment
+        verbose && println("Branch and Bound sur la variable $(indEndAssignment+1), on la fixe à 0")
+        branchAndBound(prob, A0, assignmentWeight, assignmentProfit, S, consecutiveSet, indEndAssignment+1, ϵ, verbose = verbose) # exploring the first subproblem
         verbose && println()
         verbose && println("Branch and Bound sur la variable $(i+1), on la fixe à 1")
 
-        variableProfit = broadcast(obj->obj.profits[indAssignment+1], prob.objs)
+        variableProfit = broadcast(obj->obj.profits[indEndAssignment+1], prob.objs)
 
-        branchAndBound(prob, A1, assignmentWeight + prob.constraint.weights[indAssignment+1], assignmentProfit + variableProfit, S, consecutiveSet, indAssignment+1, ϵ, verbose = verbose) # exploring the second subproblem
+        branchAndBound(prob, A1, assignmentWeight + prob.constraint.weights[indEndAssignment+1], assignmentProfit + variableProfit, S, consecutiveSet, indEndAssignment+1, ϵ, verbose = verbose) # exploring the second subproblem
     end
 end
 
