@@ -16,14 +16,27 @@ struct Problem
 end
 
 struct Solution
-    x::Vector{Bool}
-    y::Vector{Int}
+    x::Vector{Union{Bool, Float64}}
+    y::Vector{Union{Int, Float64}}
     weight::Int
+    id::Int
+end
+
+struct PairOfSolution
+    sol1::Solution
+    sol2::Solution
+    id::Int
 end
 
 struct DualSet
-    A::Array{Int, 2}
-    b::Vector{Int}
+    A::Array{Union{Int, Float64}, 2}
+    b::Vector{Union{Int, Float64}}
+end
+
+struct Assignment
+    assignment::Vector{Int}
+    indEndAssignment::Int
+    nadirPoints::Vector{Int}
 end
 
 import Base.show
@@ -86,6 +99,14 @@ function parser(fname::String)
     )
 end
 
+function initEmptyAssignment(nbVar)
+    assignment = zeros(Int, nbVar)
+    for iter = 1:nbVar
+        assignment[iter] = -1
+    end
+    return assignment
+end
+
 function Solution()
     return Solution(
         Vector{Bool}(),
@@ -94,9 +115,38 @@ function Solution()
     )
 end
 
+function Solution(x::Vector{Bool}, y::Vector{Int}, weight::Int)
+    return Solution(
+        x,
+        y,
+        weight,
+        0
+    )
+end
+
+function PairOfSolution(sol1::Solution, sol2::Solution)
+    return PairOfSolution(
+        sol1,
+        sol2,
+        0
+    )
+end
+
 function DualSet()
     return DualSet(
-        Array{Int, 2}(),
-        Vector{Int}()
+        Array{Union{Int, Float64}, 2}(undef, 0, 0),
+        Vector{Union{Int, Float64}}()
+    )
+end
+
+function Assignment(subAssignment::Vector{Int}, nadirPoints::Vector{PairOfSolution}, nbVar::Int)
+    indEndAssignment = length(subAssignment)
+    assignment = initEmptyAssignment(nbVar)
+    assignment[1:indEndAssignment] = subAssignment
+
+    return Assigment(
+        assignment,
+        indEndAssignment,
+        nadirPoints
     )
 end
