@@ -1,10 +1,10 @@
 
 struct Obj
-    profits::Vector{Float64}
+    profits::Vector{Int}
 end
 
 struct Const
-    maxWeight::Float64
+    maxWeight::Int
     weights::Vector{Float64}
 end
 
@@ -17,12 +17,13 @@ end
 
 struct Solution
     x::Vector{Bool}
-    y::Vector{Float64}
+    y::Vector{Int}
+    weight::Int
 end
 
 struct DualSet
-    A::Array{Float64, 2}
-    b::Vector{Float64}
+    A::Array{Int, 2}
+    b::Vector{Int}
 end
 
 import Base.show
@@ -68,26 +69,34 @@ end
 function parser(fname::String)
     f = open("Data/"*fname)
     nbObjs = parse(Int, readline(f))
-    nbVar, maxWeight = parse.(Float64, split(readline(f), " "))
+    nbVar, maxWeight = parse.(Int, split(readline(f), " "))
     nbVar = Int(nbVar)
 
-    objs = Vector{Vector{Float64}}(undef, nbObjs)
+    objs = Vector{Vector{Int}}(undef, nbObjs)
 
     for iterObj = 1:nbObjs
-        objs[iterObj] = parse.(Float64, split(readline(f), " "))
+        objs[iterObj] = parse.(Int, split(readline(f), " "))
     end
 
     return Problem(
         nbObjs,
         nbVar,
         Obj.(objs),
-        Const(maxWeight, parse.(Float64, split(readline(f), " ")))
+        Const(maxWeight, parse.(Int, split(readline(f), " ")))
     )
 end
 
 function Solution()
     return Solution(
         Vector{Bool}(),
-        Vector{Float64}()
+        Vector{Int}(),
+        0
+    )
+end
+
+function DualSet()
+    return DualSet(
+        Array{Int, 2}(),
+        Vector{Int}()
     )
 end

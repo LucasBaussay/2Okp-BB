@@ -1,0 +1,45 @@
+Liste des graphs dont j'ai besoin:
+
+1:Sans Pretraitement
+-prog dynamique v1
+-prog dynamique v2
+-pour aller plus loin
+-GLPK
+
+2:Graph des etats stockés
+-Etats stockés par la v1
+-Etats stockés par la v2
+
+3:Graph des etats filtrés
+-Etats filtrés par la v1
+-Etats filtrés par la v2
+
+4:Graph des etats de la v2
+-Etats stockés par la v2
+-Etats filtrés par la v2
+
+5:Graph des etats de la v1
+-Etats stockés par la v1
+-Etats filtrés par la v1
+
+6:SP
+-prog dyn v1
+-prog dyn v2
+
+7:SP
+-prog dyn v2
+-pour aller plus loin
+
+8: AVec pretraitement
+-prog dyn v2
+-pour aller plus loin
+
+9:Avec pretrait
+-pour aller plus loin
+-glpk
+
+10: Pretraitement ? (Non)
+-nombre d'etats dans L0
+-nombre d'etats dans L1
+-nombre d'etats restant
+

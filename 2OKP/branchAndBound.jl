@@ -257,7 +257,7 @@ function branchAndBound(prob::Problem, assignment::Vector{Int}, assignmentWeight
 
     # keep branching
     if fathomed == none && indEndAssignment < prob.nbVar
-        A0, A1 = newAssignments(assignment, indEndAssign]ment+1)
+        A0, A1 = newAssignments(assignment, indEndAssignment+1)
 
         verbose && println("Branch and Bound sur la variable $(indEndAssignment+1), on la fixe à 0")
 
@@ -323,6 +323,3 @@ function main_BranchandBound(prob::Problem, orderName = "random", ϵ::Float64 = 
 
     return S
 end
-
-
-#Je veux tester des trics
