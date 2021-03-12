@@ -62,42 +62,81 @@ function evaluate(prob::Problem, x::Vector{Bool})
     return Solution(x, y)
 end
 
-"""
-    Concordance des structures de données ?!
-"""
+function whichFathomed(upperBound::DualSet, lowerBound::Vector{Solution}, consecutiveSet::Vector{PairOfSolution})
 
-function whichFathomed(upperBound::DualSet, lowerBound::Vector{Solution}, S::Vector{Solution}, consecutivePoint::Vector{Tuple{Solution, Solution}})
-    noNadirUnderUB = true # becomes false if we found a nadir point under the upperBound
+    noNadirUnderUB = true
+
+    nadirPointToStudy = Vector{PairOfSolution}()
 
     if length(lowerBound) == 0 # no solutions supported
-        return infeasibility
+        return infeasibility, Vector{Solution}()
     elseif length(lowerBound) == 1 # only one feasible solution
-        return optimality
+        return optimality, Vector{Solution}()
     else
-        iterConsecPoint = 0
-        while noNadirUnderUB && iterConsecPoint < length(consecutivePoint) # going through the consecutive points
-            iterConsecPoint += 1
-            solR, solL = consecutivePoint[iterConsecPoint] # getting the two consecutive points
-            nadirPoint = [min(solR.y[ind], solL.y[ind]) for ind = 1:length(solR.y)] # constructing the nadir point
+        for iter = 1:length(consecutiveSet) # going through the consecutive points
+            testOneNadir = true # becomes false the nadir point is under the upperBound
+            pair = consecutiveSet[iter]
+
+            nadirPoint = [min(pair.sol1.y[ind], pair.sol2.y[ind]) for ind = 1:length(pair.sol1.y)] # constructing the nadir point
             # projection of the nadir point on the constraints of the upper bound
             Ax = upperBound.A * nadirPoint
             # verifying that the nadir point is under each constraint of the upperBound
             indexConstr = 0
-            while noNadirUnderUB && indexConstr < length(upperBound.b)
+            while testOneNadir && indexConstr < length(upperBound.b)
                 indexConstr += 1
-                noNadirUnderUB = noNadirUnderUB && Ax[indexConstr] > upperBound.b[indexConstr]
+                testOneNadir = testOneNadir && Ax[indexConstr] > upperBound.b[indexConstr]
             end
+            if !testOneNadir
+                push!(nadirPointToStudy, pair)
+            end
+
+            noNadirUnderUB = noNadirUnderUB && testOneNadir
         end
         # conclusion on the type of pruning
         if noNadirUnderUB
-            return dominance
+            return dominance, Vector{Solution}()
         else
-            return none
+            return none, nadirPointToStudy
         end
     end
 end
 
-function computeLowerBound!(lowerBound::Vector{Solution}, consecutiveSet::Vector{Tuple{Solution, Solution}}, prob::Problem; M::Int = 1000, verbose = false)
+function subProb(prob::Problem, assignment::Asignment)
+
+    return Problem(
+        prob.nbObj,
+        prob.nbVar - assignment.indEndAssignment,
+        Obj.(prob.objs[(assignment.indEndAssignment+1):end]),
+        Const(prob.maxWeight - assignment.weight, prob.constraint.weights[(assignment.indEndAssignment+1):end])
+    )
+
+end
+
+function createSuperSol(sol::Solution, assignment::Assignment, id::Int)
+
+    return Solution(
+        append!(assignment.assignment[1:assignment.indEndAssignment], sol.x),
+        sol.y + assignment.profits,
+        sol.weight + assignment.weight,
+        id
+    )
+
+end
+
+function createSuperSol(sol::Solution, assignment::Assignment)
+    return createSuperSol(sol, assignment, sol.id)
+end
+
+function updateBound!(lowerBound::Vector{Solution}, consecutiveSet::Vector{PairOfSolution}, subExtremPoints::Vector{Solution})
+
+
+
+end
+
+function computeLowerBound!(lowerBound::Vector{Solution}, consecutiveSet::Vector{Tuple{Solution, Solution}}, mainProb::Problem, assignment::Assignment; M::Int = 1000, verbose = false)
+
+    prob = subProb(prob, assignment)
+
     S = Vector{Tuple{Solution, Solution}}()
 
     # computing the two first points, sol1 is the best for the only the objective number 1, and sol2 for the objective number 2.
@@ -111,10 +150,10 @@ function computeLowerBound!(lowerBound::Vector{Solution}, consecutiveSet::Vector
     verbose && println("On crée les solution lexico : $(sol1.y) et $(sol2.y)")
 
     if sol1.y == sol2.y # solutions are identicals
-        push!(XSEm, sol1)
+        push!(lowerBound, createSuperSol(sol1, assignment, length(lowerBound)+1))
     else # solutions are different
         push!(S, (sol1, sol2)) # we'll need to study (sol1,sol2)
-        push!(lowerBound, sol1, sol2) # sol1 and sol2 are supported efficient and extreme solutions
+        push!(lowerBound, createSuperSol(sol1, assignment, length(lowerBound)+1), createSuperSol(sol2, assignment, length(lowerBound)+2)) # sol1 and sol2 are supported efficient and extreme solutions
 
         # goal : compute the dichotomy
         while length(S) != 0 # while we have solutions to study
@@ -128,18 +167,18 @@ function computeLowerBound!(lowerBound::Vector{Solution}, consecutiveSet::Vector
             solE = evaluate(prob, solE.x)
 
             if sum(λ .* solE.y) > sum(λ .* solR.y) # solE is better than solR according to λ
-                push!(XSEm, solE) # solE is solution we want
+                push!(lowerBound, createSuperSol(solE, assignment, length(lowerBound)+1)) # solE is solution we want
                 push!(S, (solR, solE), (solE, solL)) # now we need to study (solR, solE) and (solE, solL)
                 verbose && println("On a trouvé la solution : $(solE.y)")
             else # solE is equal to solR according to λ, so we didn't find new solutions
-                push!(consecutiveSet, (solR, solL)) # we know we won't find solutions between solR, solL, so we memorize the tuple
+                push!(consecutiveSet, PairOfSolution(createSuperSol(solR, assignment), createSuperSol(solL, assignment), length(consecutiveSet)+1)) # we know we won't find solutions between solR, solL, so we memorize the tuple
                 verbose && println("On a rien trouvé dans cette direction")
             end
         end
     end
 end
 
-function computeUpperBound(consecutiveSet::vector{PairOfSolution})
+function computeUpperBound(consecutiveSet::Vector{PairOfSolution})
 
     A = Array{Union{Int, Float64}, 2}(undef, length(consecutiveSet) + 2, 2)
     B = Vector{Union{Int, Float64}}(undef, length(consecutiveSet)+2)
@@ -187,24 +226,44 @@ function computeUpperBound(consecutiveSet::vector{PairOfSolution})
     return DualSet(A, B)
 end
 
-function branchAndBound!(lowerBound::Vector{Solution}, consecutiveSet::Vector{Tuple{Solution, Solution}}, prob::Problem, withConvex::Bool; M = 1000, verbose = false)
+function branchAndBound!(lowerBound::Vector{Solution}, consecutiveSet::Vector{PairOfSolution}, prob::Problem, withConvex::Bool; M = 1000, verbose = false)
 
     """
         Initalisation of the variables
     """
     listOfAssignment = Vector{Assignment}()
-    push!(listOfAssignment, Assignment([1], consecutiveSet, prob.nbVar))
-    push!(listOfAssignment, Assignment([0], consecutiveSet, prob.nbVar))
+    push!(listOfAssignment, Assignment([1], consecutiveSet, prob))
+    push!(listOfAssignment, Assignment([0], consecutiveSet, prob))
 
     while length(listOfAssignment) != 0
+
+        assignment = pop!(listOfAssignment)
+
         subExtremPoints = Vector{Solution}()
         subConsecutiveSet = Vector{PairOfSolution}()
         subUpperBound = DualSet()
 
         if withConvex
-            computeLowerBound!(subExtremPoints, subConsecutiveSet, prob, M = M, verbose = verbose)
+            computeLowerBound!(subExtremPoints, subConsecutiveSet, prob, assignment, M = M, verbose = verbose)
             subUpperBound = computeUpperBound(subConsecutiveSet)
 
+            updateBound!(lowerBound, consecutiveSet, subExtremPoints)
+
+            fathomed, nadirPointsToStudy = wichFathomed(subUpperBound, subExtremPoints, assignment.nadirPoints)
+
+            if fathomed == none && assignment.indEndAssignment < prob.nbVar
+                push!(listOfAssignment, Assignment(
+                                                append!(assignment.assignment[1:assignment.indEndAssignment], [1]),
+                                                assignment.indEndAssignment+1,
+                                                assignment.profits + broadcast(obj->obj.profits[assignment.indEndAssignment+1], prob.objs),
+                                                assignment.weight + prob.constraint.weights[assignment.indEndAssignment+1],
+                                                nadirPointsToStudy))
+                push!(listOfAssignment, Assignment(
+                                                append!(assignment.assignment[1:assignment.indEndAssignment], [0]),
+                                                assignment.indEndAssignment+1,
+                                                assignment.profits,
+                                                assignment.weight,
+                                                nadirPointsToStudy))
 
         else
 
@@ -225,7 +284,7 @@ function main(fname::String = "test.dat"; withHeuristic::Bool = false, withConve
     prob = parser(fname)
 
     lowerBoundSet = Vector{Solution}()
-    consecutiveSet = Vector{Tuple{Solution, Solution}}()
+    consecutiveSet = Vector{PairOfSolution}()
 
     """
         Call from the different functions

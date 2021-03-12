@@ -5,7 +5,7 @@ end
 
 struct Const
     maxWeight::Int
-    weights::Vector{Float64}
+    weights::Vector{Int}
 end
 
 struct Problem
@@ -36,7 +36,11 @@ end
 struct Assignment
     assignment::Vector{Int}
     indEndAssignment::Int
-    nadirPoints::Vector{Int}
+
+    profit::Vector{Int}
+    weight::Int
+
+    nadirPoints::Vector{PairOfSolution}
 end
 
 import Base.show
@@ -120,9 +124,16 @@ function Solution(x::Vector{Bool}, y::Vector{Int}, weight::Int)
         x,
         y,
         weight,
-        0
+        -1
     )
 end
+
+function PairOfSolution()
+    return PairOfSolution(
+        Solution(),
+        Solution(),
+        -1
+    )
 
 function PairOfSolution(sol1::Solution, sol2::Solution)
     return PairOfSolution(
@@ -139,14 +150,26 @@ function DualSet()
     )
 end
 
-function Assignment(subAssignment::Vector{Int}, nadirPoints::Vector{PairOfSolution}, nbVar::Int)
+function Assignment(subAssignment::Vector{Int}, nadirPoints::Vector{PairOfSolution}, prob::Problem)
     indEndAssignment = length(subAssignment)
-    assignment = initEmptyAssignment(nbVar)
+    assignment = initEmptyAssignment(prob.nbVar)
     assignment[1:indEndAssignment] = subAssignment
+
+    profits = zeros(Int, prob.nbObj)
+    weight = 0
+
+    for iter = 1:indEndAssignment
+        profits += subAssignment[iter] * broadcast(obj -> obj.profits[iter], prob.objs)
+        weight += subAssignment[iter] * prob.constraint.weights[iter]
+    end
 
     return Assigment(
         assignment,
         indEndAssignment,
+
+        profits,
+        weight,
+
         nadirPoints
     )
 end
