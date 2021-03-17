@@ -173,3 +173,30 @@ function Assignment(subAssignment::Vector{Int}, nadirPoints::Vector{PairOfSoluti
         nadirPoints
     )
 end
+
+
+import Base.>, Base.==
+
+Base.==(sol1::Solution, sol2::Solution) = sol1.x == sol2.x
+
+function greaterSol(sol1::Solution, sol2::Solution)
+    res = true
+    for iter = 1:length(sol1.y)
+        res = res && sol1.y[iter] > sol2.y[iter]
+    end
+    return res
+end
+
+function greaterNadir(sol::Solution, pair::PairOfSolution)
+    res = true
+
+    for iter = 1:length(sol.y)
+        res = res && sol.y[iter] > min(pair.sol1.y[iter], pair.sol2.y[iter])
+    end
+
+    return res
+end
+
+Base.>(sol1::Solution, sol2::Solution) = greaterSol(sol1, sol2)
+
+Base.>(sol::Solution, pair::PairOfSolution) = greaterNadir(sol, pair)

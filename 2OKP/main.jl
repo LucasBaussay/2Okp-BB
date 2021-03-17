@@ -19,7 +19,7 @@ include("branchAndBound.jl")
 
 """
 
-function solve1Okp(prob::Problem)
+function solve1Okp(prob::Problem, id::Int = -1)
 
     @assert prob.nbObj == 1 "This problem is no 1OKP"
 
@@ -27,7 +27,7 @@ function solve1Okp(prob::Problem)
 
     sol = main1Okp(ListObj, prob.constraint.maxWeight)
 
-    return Solution(Bool.(sol.X), sol.y, sum(sol.X .* prob.constraint.weights))
+    return Solution(Bool.(sol.X), [sol.y], sum(sol.X .* prob.constraint.weights), id)
 
 end
 
@@ -129,19 +129,62 @@ end
 
 function updateBound!(lowerBound::Vector{Solution}, consecutiveSet::Vector{PairOfSolution}, subExtremPoints::Vector{Solution})
 
+    for sol in subExtremPoints
 
+        #Tout d'abord on check la domination d'un point
+        iter = 1
+        foundSolDom = false
+        while iter <= length(lowerBound) && !foundSolDom
+            anotherSol = lowerBound[iter]
+
+            if sol > anotherSol
+                foundSolDom = true
+                nbPair = 0
+                iterPair = 1
+                while iterPair <= length(consecutiveSet) && nbPair < 2
+                    pair = consecutiveSet[iterPair]
+                    if pair.sol1 == anotherSol
+                        consecutiveSet[iterPair] = PairOfSolution(sol, pair.sol2)
+                        nbPair += 1
+                    elseif pair.sol2 == anotherSol
+                        consecutiveSet[iterPair] = PairOfSolution(pair.sol1, sol)
+                        nbPair += 1
+                    end
+                    iterPair += 1
+                end
+            end
+            iter += 1
+        end
+
+        if !foundSolDom
+            iter = 1
+            foundNadirDom = false
+
+            while iter < length(consecutiveSet) && !foundNadirDom
+                 pair = consecutiveSet[iter]
+                 if sol > pair
+                     foundNadirDom = true
+
+                     consecutiveSet[iter] = PairOfSolution(pair.sol1, sol)
+                     push!(consecutiveSet, PairOfSolution(sol, pair.sol2))
+                     push!(lowerBound, sol)
+                 end
+                 iter += 1
+             end
+        end
+    end
 
 end
 
 function computeLowerBound!(lowerBound::Vector{Solution}, consecutiveSet::Vector{Tuple{Solution, Solution}}, mainProb::Problem, assignment::Assignment; M::Int = 1000, verbose = false)
 
-    prob = subProb(prob, assignment)
+    prob = subProb(mainProb, assignment)
 
     S = Vector{Tuple{Solution, Solution}}()
 
     # computing the two first points, sol1 is the best for the only the objective number 1, and sol2 for the objective number 2.
-    sol1 = solve1Okp(weightedScalarRelax(prob, [M, 1]))
-    sol2 = solve1Okp(weightedScalarRelax(prob, [1, M]))
+    sol1 = solve1Okp(weightedScalarRelax(prob, [M, 1]), 1)
+    sol2 = solve1Okp(weightedScalarRelax(prob, [1, M]), 2)
 
     # evaluating the two sols and constructing the associated solutions
     sol1 = evaluate(prob, sol1.x)
@@ -150,10 +193,12 @@ function computeLowerBound!(lowerBound::Vector{Solution}, consecutiveSet::Vector
     verbose && println("On crée les solution lexico : $(sol1.y) et $(sol2.y)")
 
     if sol1.y == sol2.y # solutions are identicals
-        push!(lowerBound, createSuperSol(sol1, assignment, length(lowerBound)+1))
+        push!(lowerBound, createSuperSol(sol1, assignment))
     else # solutions are different
         push!(S, (sol1, sol2)) # we'll need to study (sol1,sol2)
-        push!(lowerBound, createSuperSol(sol1, assignment, length(lowerBound)+1), createSuperSol(sol2, assignment, length(lowerBound)+2)) # sol1 and sol2 are supported efficient and extreme solutions
+        superSol1 = createSuperSol(sol1, assignment)
+        superSol2 = createSuperSol(sol2, assignment)
+        push!(lowerBound, superSol1, superSol2) # sol1 and sol2 are supported efficient and extreme solutions
 
         # goal : compute the dichotomy
         while length(S) != 0 # while we have solutions to study
@@ -163,11 +208,11 @@ function computeLowerBound!(lowerBound::Vector{Solution}, consecutiveSet::Vector
             # computing the direction of the search
             λ = [solL.y[2]-solR.y[2], solR.y[1]-solL.y[1]]
             # computing the resulting solution
-            solE = solve1Okp(weightedScalarRelax(prob, λ))
+            solE = solve1Okp(weightedScalarRelax(prob, λ), length(lowerBound)+1)
             solE = evaluate(prob, solE.x)
 
             if sum(λ .* solE.y) > sum(λ .* solR.y) # solE is better than solR according to λ
-                push!(lowerBound, createSuperSol(solE, assignment, length(lowerBound)+1)) # solE is solution we want
+                push!(lowerBound, createSuperSol(solE, assignment)) # solE is solution we want
                 push!(S, (solR, solE), (solE, solL)) # now we need to study (solR, solE) and (solE, solL)
                 verbose && println("On a trouvé la solution : $(solE.y)")
             else # solE is equal to solR according to λ, so we didn't find new solutions
