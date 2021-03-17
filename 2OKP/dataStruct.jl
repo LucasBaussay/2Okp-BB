@@ -16,8 +16,8 @@ struct Problem
 end
 
 struct Solution
-    x::Vector{Union{Bool, Float64}}
-    y::Vector{Union{Int, Float64}}
+    x::Vector{Bool}
+    y::Vector{Int}
     weight::Int
     id::Int
 end
@@ -134,6 +134,7 @@ function PairOfSolution()
         Solution(),
         -1
     )
+end
 
 function PairOfSolution(sol1::Solution, sol2::Solution)
     return PairOfSolution(
@@ -150,6 +151,16 @@ function DualSet()
     )
 end
 
+function Assignment()
+    return Assignment(
+        Vector{Int}(),
+        0,
+        Vector{Int}(),
+        0,
+        Vector{PairOfSolution}()
+    )
+end
+
 function Assignment(subAssignment::Vector{Int}, nadirPoints::Vector{PairOfSolution}, prob::Problem)
     indEndAssignment = length(subAssignment)
     assignment = initEmptyAssignment(prob.nbVar)
@@ -163,7 +174,7 @@ function Assignment(subAssignment::Vector{Int}, nadirPoints::Vector{PairOfSoluti
         weight += subAssignment[iter] * prob.constraint.weights[iter]
     end
 
-    return Assigment(
+    return Assignment(
         assignment,
         indEndAssignment,
 
@@ -175,9 +186,7 @@ function Assignment(subAssignment::Vector{Int}, nadirPoints::Vector{PairOfSoluti
 end
 
 
-import Base.>, Base.==
-
-Base.==(sol1::Solution, sol2::Solution) = sol1.x == sol2.x
+import Base.>
 
 function greaterSol(sol1::Solution, sol2::Solution)
     res = true
@@ -197,6 +206,6 @@ function greaterNadir(sol::Solution, pair::PairOfSolution)
     return res
 end
 
-Base.>(sol1::Solution, sol2::Solution) = greaterSol(sol1, sol2)
+>(sol1::Solution, sol2::Solution) = greaterSol(sol1, sol2)
 
-Base.>(sol::Solution, pair::PairOfSolution) = greaterNadir(sol, pair)
+>(sol::Solution, pair::PairOfSolution) = greaterNadir(sol, pair)

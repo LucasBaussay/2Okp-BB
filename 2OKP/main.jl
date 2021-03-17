@@ -27,14 +27,14 @@ function solve1Okp(prob::Problem, id::Int = -1)
 
     sol = main1Okp(ListObj, prob.constraint.maxWeight)
 
-    return Solution(Bool.(sol.X), [sol.y], sum(sol.X .* prob.constraint.weights), id)
+    return Solution(Bool.(sol.X), [sol.z], sum(sol.X .* prob.constraint.weights), id)
 
 end
 
-function weightedScalarRelax(prob::Problem, λ::Vector{Float64})
+function weightedScalarRelax(prob::Problem, λ::Vector{Int})
     @assert length(λ) == prob.nbObj "Le vecteur λ ne convient pas"
 
-    obj = Vector{Float64}(undef, prob.nbVar) # new merged objective
+    obj = Vector{Int}(undef, prob.nbVar) # new merged objective
     # GOAL : compute the coef of each variable in the new objective by merging all the objectives
     for iterVar = 1:prob.nbVar
         obj[iterVar] = sum([λ[iter] * prob.objs[iter].profits[iterVar] for iter = 1:prob.nbObj])
@@ -49,7 +49,8 @@ function weightedScalarRelax(prob::Problem, λ::Vector{Float64})
 end
 
 function evaluate(prob::Problem, x::Vector{Bool})
-    y = zeros(Float64, prob.nbObj)
+    y = zeros(Int, prob.nbObj)
+    w = 0
     # GOAL : computing the image of x by prob
     for iterObj = 1:prob.nbObj
         for iter = 1:prob.nbVar
@@ -58,8 +59,13 @@ function evaluate(prob::Problem, x::Vector{Bool})
             end
         end
     end
+    for iter = 1:prob.nbVar
+        if x[iter]
+            w += prob.constraint.weights[iter]
+        end
+    end
     # the resulting point
-    return Solution(x, y)
+    return Solution(x, y, w)
 end
 
 function whichFathomed(upperBound::DualSet, lowerBound::Vector{Solution}, consecutiveSet::Vector{PairOfSolution})
@@ -101,26 +107,33 @@ function whichFathomed(upperBound::DualSet, lowerBound::Vector{Solution}, consec
     end
 end
 
-function subProb(prob::Problem, assignment::Asignment)
+function subProb(prob::Problem, assignment::Assignment)
 
     return Problem(
         prob.nbObj,
         prob.nbVar - assignment.indEndAssignment,
-        Obj.(prob.objs[(assignment.indEndAssignment+1):end]),
-        Const(prob.maxWeight - assignment.weight, prob.constraint.weights[(assignment.indEndAssignment+1):end])
+        Obj.(broadcast(obj -> obj.profits[(assignment.indEndAssignment+1):end], prob.objs)),
+        Const(prob.constraint.maxWeight - assignment.weight, prob.constraint.weights[(assignment.indEndAssignment+1):end])
     )
 
 end
 
 function createSuperSol(sol::Solution, assignment::Assignment, id::Int)
-
-    return Solution(
-        append!(assignment.assignment[1:assignment.indEndAssignment], sol.x),
-        sol.y + assignment.profits,
-        sol.weight + assignment.weight,
-        id
-    )
-
+    if assignment.indEndAssignment != 0
+        return Solution(
+            append!(assignment.assignment[1:assignment.indEndAssignment], sol.x),
+            sol.y + assignment.profit,
+            sol.weight + assignment.weight,
+            id
+        )
+    else
+        return Solution(
+            sol.x,
+            sol.y,
+            sol.weight,
+            id
+        )
+    end
 end
 
 function createSuperSol(sol::Solution, assignment::Assignment)
@@ -176,7 +189,7 @@ function updateBound!(lowerBound::Vector{Solution}, consecutiveSet::Vector{PairO
 
 end
 
-function computeLowerBound!(lowerBound::Vector{Solution}, consecutiveSet::Vector{Tuple{Solution, Solution}}, mainProb::Problem, assignment::Assignment; M::Int = 1000, verbose = false)
+function computeLowerBound!(lowerBound::Vector{Solution}, consecutiveSet::Vector{PairOfSolution}, mainProb::Problem, assignment::Assignment = Assignment(); M::Int = 1000, verbose = false)
 
     prob = subProb(mainProb, assignment)
 
@@ -309,14 +322,16 @@ function branchAndBound!(lowerBound::Vector{Solution}, consecutiveSet::Vector{Pa
                                                 assignment.profits,
                                                 assignment.weight,
                                                 nadirPointsToStudy))
+            end
 
         else
 
         end
+    end
 
 end
 
-function algoJules!(lowerBound::Vector{Solution}, consecutiveSet::Vector{Tuple{Solution, Solution}}, prob::Problem) end
+function algoJules!(lowerBound::Vector{Solution}, consecutiveSet::Vector{PairOfSolution}, prob::Problem) end
 
 function main(fname::String = "test.dat"; withHeuristic::Bool = false, withConvex::Bool = false, verbose::Bool = false)
 
@@ -336,7 +351,7 @@ function main(fname::String = "test.dat"; withHeuristic::Bool = false, withConve
     """
 
     # Calculate the Primal and Dual Set
-    computeLowerBound!(lowerBoundSet, consecutiveSet, prob)
+    computeLowerBound!(lowerBoundSet, consecutiveSet, prob, Assignment())
 
     withHeuristic ? algoJules!(lowerBoundSet, consecutiveSet, prob) : nothing
 
