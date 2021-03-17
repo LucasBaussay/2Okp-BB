@@ -204,8 +204,8 @@ function linearRelax(prob::Problem, assign::Assignment, indEndAssignment::Int = 
         # ub = lb + primLeftWeight / prob.constraint.weight[it]*prob.objs[1].profits[permList[it]]
     end
 
-    sol = evaluateLinear(prob, heurSol[revPermList])
-    return (heurSol[revPermList], sol)
+    # sol = evaluateLinear(prob, heurSol[revPermList])
+    return (heurSol[revPermList])
 end
 
 function updateBound!(lowerBound::Vector{Solution}, consecutiveSet::Vector{PairOfSolution}, subExtremPoints::Vector{Solution})
@@ -345,6 +345,9 @@ function branchAndBound!(lowerBound::Vector{Solution}, consecutiveSet::Vector{Pa
                                                 nadirPointsToStudy))
             end
         else
+
+
+
 
         end
     end
