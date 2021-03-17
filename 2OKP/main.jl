@@ -64,6 +64,22 @@ function evaluate(prob::Problem, x::Vector{Bool})
     return Solution(x, y, weight/2, 1)
 end
 
+function evaluateLinear(prob::Problem, x::Vector{Float64})
+    y = zeros(Float64, prob.nbObj)
+    weight = 0
+    # GOAL : computing the image of x by prob
+    for iterObj = 1:prob.nbObj
+        for iter = 1:prob.nbVar
+            if x[iter] > 0
+                y[iterObj] += prob.objs[iterObj].profits[iter] * x[iter]
+                weight += prob.constraint.weights[iter] * x[iter]
+            end
+        end
+    end
+    # the resulting point
+    return Solution(x, y, weight/2, 1)
+end
+
 function whichFathomed(upperBound::DualSet, lowerBound::Vector{Solution}, consecutiveSet::Vector{PairOfSolution})
 
     noNadirUnderUB = true
@@ -129,24 +145,29 @@ function createSuperSol(sol::Solution, assignment::Assignment)
     return createSuperSol(sol, assignment, sol.id)
 end
 
-function linearRelax(prob::Problem, assign::Assignment, indEndAssignment::Int = 0, obj::Int=1)
+function linearRelax(prob::Problem, assign::Assignment, indEndAssignment::Int = 0, obj::Int=1, verbose = true)
 
     # INITIALIZATION OF THE PROBLEM
     assignment = assign.assignment
     # sorts the variable from the best utility to the worst
-    permList = sortperm(prob.objs[1].profits ./ prob.constraint.weights, rev = true)
+    permList = sortperm(prob.objs[obj].profits ./ prob.constraint.weights, rev = true)
+    verbose && println("liste de permut : ", permList)
     # stocks the perm order to reverse the problem at the end
     revPermList = sortperm(permList)
+    verbose && println("rev perm list : ", revPermList)
 
     # if the assignement is empty, fills it with -1, meaning the variable is not assigned yet
     if assignment == []
-        assignment  = ones(prob.nbVar, 1) * -1
+        assignment  = ones(prob.nbVar, 1) * -1.
+    else
+        assignment = assignment * 1.
     end
 
     # Weight left given the variables' assignement
     primLeftWeight = prob.constraint.maxWeight - assign.weight
+    verbose && println("poids restant init : ", primLeftWeight)
 
-    heurSol = zeros(Bool, prob.nbVar)
+    heurSol = zeros(Float64, prob.nbVar)
     iterLastOne = 0
 
     for iter = 1:prob.nbVar
@@ -160,6 +181,8 @@ function linearRelax(prob::Problem, assign::Assignment, indEndAssignment::Int = 
         end
     end
 
+    verbose && println("iter last one : ", iterLastOne)
+
     it = indEndAssignment + 1
 
     # UPPER BOUND COMPUTATION
@@ -169,18 +192,19 @@ function linearRelax(prob::Problem, assign::Assignment, indEndAssignment::Int = 
         heurSol[it] = 1
         primLeftWeight -= prob.constraint.weights[permList[it]]
         it += 1
+        verbose && println("current sol : ", heurSol , " and weight : ", primLeftWeight)
     end
 
     # add fragments of the next best object according to the utility
     # iter corresponds to the limiting object
     if primLeftWeight != 0
-        assignment[it] = primLeftWeight / prob.constraint.weight[it]
-        primLeftWeight -= prob.constraint.weights[permList[it]]
-
+        heurSol[it] = primLeftWeight / prob.constraint.weights[it]
+        primLeftWeight -= prob.constraint.weights[permList[it]] * primLeftWeight / prob.constraint.weights[it]
+        verbose && println("final assign : ", assignment, " and remaining weight : ", primLeftWeight)
         # ub = lb + primLeftWeight / prob.constraint.weight[it]*prob.objs[1].profits[permList[it]]
     end
 
-    sol = evaluate(prob, heurSol[revPermList])
+    sol = evaluateLinear(prob, heurSol[revPermList])
     return (heurSol[revPermList], sol)
 end
 
