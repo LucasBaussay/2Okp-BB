@@ -50,16 +50,18 @@ end
 
 function evaluate(prob::Problem, x::Vector{Bool})
     y = zeros(Float64, prob.nbObj)
+    weight = 0
     # GOAL : computing the image of x by prob
     for iterObj = 1:prob.nbObj
         for iter = 1:prob.nbVar
             if x[iter]
                 y[iterObj] += prob.objs[iterObj].profits[iter]
+                weight += prob.constraint.weights[iter]
             end
         end
     end
     # the resulting point
-    return Solution(x, y)
+    return Solution(x, y, weight/2, 1)
 end
 
 function whichFathomed(upperBound::DualSet, lowerBound::Vector{Solution}, consecutiveSet::Vector{PairOfSolution})
@@ -101,7 +103,7 @@ function whichFathomed(upperBound::DualSet, lowerBound::Vector{Solution}, consec
     end
 end
 
-function subProb(prob::Problem, assignment::Asignment)
+function subProb(prob::Problem, assignment::Assignment)
 
     return Problem(
         prob.nbObj,
@@ -127,9 +129,62 @@ function createSuperSol(sol::Solution, assignment::Assignment)
     return createSuperSol(sol, assignment, sol.id)
 end
 
+function linearRelax(prob::Problem, assign::Assignment, indEndAssignment::Int = 0, obj::Int=1)
+
+    # INITIALIZATION OF THE PROBLEM
+    assignment = assign.assignment
+    # sorts the variable from the best utility to the worst
+    permList = sortperm(prob.objs[1].profits ./ prob.constraint.weights, rev = true)
+    # stocks the perm order to reverse the problem at the end
+    revPermList = sortperm(permList)
+
+    # if the assignement is empty, fills it with -1, meaning the variable is not assigned yet
+    if assignment == []
+        assignment  = ones(prob.nbVar, 1) * -1
+    end
+
+    # Weight left given the variables' assignement
+    primLeftWeight = prob.constraint.maxWeight - assign.weight
+
+    heurSol = zeros(Bool, prob.nbVar)
+    iterLastOne = 0
+
+    for iter = 1:prob.nbVar
+        iterOrdered = permList[iter]
+        println("index : ", assignment, " et ", assignment[iterOrdered])
+        if assignment[iterOrdered] != -1
+            heurSol[iter] = assignment[iterOrdered]
+            if assignment[iterOrdered] == 1
+                iterLastOne = iterOrdered
+            end
+        end
+    end
+
+    it = indEndAssignment + 1
+
+    # UPPER BOUND COMPUTATION
+
+    # adds all possible objects given the limit weight
+    while primLeftWeight >= prob.constraint.weights[permList[it]]
+        heurSol[it] = 1
+        primLeftWeight -= prob.constraint.weights[permList[it]]
+        it += 1
+    end
+
+    # add fragments of the next best object according to the utility
+    # iter corresponds to the limiting object
+    if primLeftWeight != 0
+        assignment[it] = primLeftWeight / prob.constraint.weight[it]
+        primLeftWeight -= prob.constraint.weights[permList[it]]
+
+        # ub = lb + primLeftWeight / prob.constraint.weight[it]*prob.objs[1].profits[permList[it]]
+    end
+
+    sol = evaluate(prob, heurSol[revPermList])
+    return (heurSol[revPermList], sol)
+end
+
 function updateBound!(lowerBound::Vector{Solution}, consecutiveSet::Vector{PairOfSolution}, subExtremPoints::Vector{Solution})
-
-
 
 end
 
@@ -264,11 +319,11 @@ function branchAndBound!(lowerBound::Vector{Solution}, consecutiveSet::Vector{Pa
                                                 assignment.profits,
                                                 assignment.weight,
                                                 nadirPointsToStudy))
-
+            end
         else
 
         end
-
+    end
 end
 
 function algoJules!(lowerBound::Vector{Solution}, consecutiveSet::Vector{Tuple{Solution, Solution}}, prob::Problem) end
