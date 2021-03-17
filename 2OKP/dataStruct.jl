@@ -134,6 +134,7 @@ function PairOfSolution()
         Solution(),
         -1
     )
+end
 
 function PairOfSolution(sol1::Solution, sol2::Solution)
     return PairOfSolution(
