@@ -17,9 +17,9 @@ function fusionFinale(L0::Vector{Objet}, L1::Vector{Objet})
         return [0 for obj in L0]
     else
         if L0[1].id < L1[1].id
-            return append!(fusionFinale(L0[2:length(L0)], L1), [0])
+            return append!([0], fusionFinale(L0[2:length(L0)], L1))
         else
-            return append!(fusionFinale(L0, L1[2:length(L1)]), [1])
+            return append!([1], fusionFinale(L0, L1[2:length(L1)]))
         end
     end
 end
@@ -160,6 +160,7 @@ function main1Okp(ListObj::Vector{Objet}, poidsMax::Int64)
 
 	#On récupère tout les résultats du prétraitement
 	Res_Pretrait = main_pretrait(ListObj, poidsMax)
+
     poids1::Int64 = 0
     for obj in Res_Pretrait[2]
         poids1 = poids1 + obj.cout
@@ -180,6 +181,7 @@ function main1Okp(ListObj::Vector{Objet}, poidsMax::Int64)
 	end
 
 	#On commence à ranger les objets par leurs places initiales dans la liste d'objet garder dans le paramètre id
+
     Var0 = triId(Var0)
     Var1 = triId(Var1)
 

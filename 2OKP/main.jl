@@ -2,10 +2,17 @@ import Random
 
 @enum Fathomed none dominance infeasibility optimality
 
+
+#Léane's algorithm
+
 try
-    include("../1OKP/structKP.jl")
+    include("../1OKP_Leane/structKP.jl")
 catch end
-include("../1OKP/projetFinal.jl")
+include("../1OKP_Leane/projetFinal.jl")
+
+
+#Jules' Algorithm
+
 
 include("dataStruct.jl")
 include("pretrait.jl")
@@ -19,15 +26,25 @@ include("branchAndBound.jl")
 
 """
 
-function solve1Okp(prob::Problem, id::Int = -1)
+function solve1Okp(prob::Problem, id::Int = -1; verbose = false)
 
     @assert prob.nbObj == 1 "This problem is no 1OKP"
+    weightSum = sum(prob.constraint.weights)
 
-    ListObj = [Objet(prob.objs[1].profits[iter], prob.constraint.weights[iter], iter) for iter = 1:prob.nbVar]
+    if weightSum < prob.constraint.maxWeight
+        return Solution(trues(prob.nbVar), [sum(prob.objs[1].profits)], weightSum, id)
+    else
 
-    sol = main1Okp(ListObj, prob.constraint.maxWeight)
+        verbose && println("On solve avec l'algo de Léane : $prob")
 
-    return Solution(Bool.(sol.X), [sol.z], sum(sol.X .* prob.constraint.weights), id)
+        ListObj = [Objet(prob.objs[1].profits[iter], prob.constraint.weights[iter], iter) for iter = 1:prob.nbVar]
+
+        sol = main1Okp(ListObj, prob.constraint.maxWeight)
+
+        verbose && println("On obtient : $sol")
+
+        return Solution(Bool.(sol.X), [sol.z], sum(sol.X .* prob.constraint.weights), id)
+    end
 
 end
 
@@ -191,13 +208,16 @@ end
 
 function computeLowerBound!(lowerBound::Vector{Solution}, consecutiveSet::Vector{PairOfSolution}, mainProb::Problem, assignment::Assignment = Assignment(); M::Int = 1000, verbose = false)
 
+    verbose && println("On calcul la lowerbound pour l'assignement : $(assignment.assignment)")
+
     prob = subProb(mainProb, assignment)
+    verbose && println("Le problème auxiliaire équivaut à $prob ")
 
     S = Vector{Tuple{Solution, Solution}}()
 
     # computing the two first points, sol1 is the best for the only the objective number 1, and sol2 for the objective number 2.
-    sol1 = solve1Okp(weightedScalarRelax(prob, [M, 1]), 1)
-    sol2 = solve1Okp(weightedScalarRelax(prob, [1, M]), 2)
+    sol1 = solve1Okp(weightedScalarRelax(prob, [M, 1]), 1, verbose = verbose)
+    sol2 = solve1Okp(weightedScalarRelax(prob, [1, M]), 2, verbose = verbose)
 
     # evaluating the two sols and constructing the associated solutions
     sol1 = evaluate(prob, sol1.x)
@@ -221,7 +241,7 @@ function computeLowerBound!(lowerBound::Vector{Solution}, consecutiveSet::Vector
             # computing the direction of the search
             λ = [solL.y[2]-solR.y[2], solR.y[1]-solL.y[1]]
             # computing the resulting solution
-            solE = solve1Okp(weightedScalarRelax(prob, λ), length(lowerBound)+1)
+            solE = solve1Okp(weightedScalarRelax(prob, λ), length(lowerBound)+1, verbose = verbose)
             solE = evaluate(prob, solE.x)
 
             if sum(λ .* solE.y) > sum(λ .* solR.y) # solE is better than solR according to λ
@@ -286,6 +306,8 @@ end
 
 function branchAndBound!(lowerBound::Vector{Solution}, consecutiveSet::Vector{PairOfSolution}, prob::Problem, withConvex::Bool; M = 1000, verbose = false)
 
+    verbose && println("On commence les itérations sur le B&B\n")
+
     """
         Initalisation of the variables
     """
@@ -296,6 +318,7 @@ function branchAndBound!(lowerBound::Vector{Solution}, consecutiveSet::Vector{Pa
     while length(listOfAssignment) != 0
 
         assignment = pop!(listOfAssignment)
+        verbose && println("On étudie l'assignment : $(assignment.assignment)")
 
         subExtremPoints = Vector{Solution}()
         subConsecutiveSet = Vector{PairOfSolution}()
@@ -307,19 +330,21 @@ function branchAndBound!(lowerBound::Vector{Solution}, consecutiveSet::Vector{Pa
 
             updateBound!(lowerBound, consecutiveSet, subExtremPoints)
 
-            fathomed, nadirPointsToStudy = wichFathomed(subUpperBound, subExtremPoints, assignment.nadirPoints)
+            fathomed, nadirPointsToStudy = whichFathomed(subUpperBound, subExtremPoints, assignment.nadirPoints)
+            verbose && println("L'état de ce sous-arbre est : $fathomed")
 
             if fathomed == none && assignment.indEndAssignment < prob.nbVar
+                verbose && println("On rajoute l'assignement : $(append!(assignment.assignment[1:assignment.indEndAssignment], [1])) et $(append!(assignment.assignment[1:assignment.indEndAssignment], [0]))")
                 push!(listOfAssignment, Assignment(
                                                 append!(assignment.assignment[1:assignment.indEndAssignment], [1]),
                                                 assignment.indEndAssignment+1,
-                                                assignment.profits + broadcast(obj->obj.profits[assignment.indEndAssignment+1], prob.objs),
+                                                assignment.profit + broadcast(obj->obj.profits[assignment.indEndAssignment+1], prob.objs),
                                                 assignment.weight + prob.constraint.weights[assignment.indEndAssignment+1],
                                                 nadirPointsToStudy))
                 push!(listOfAssignment, Assignment(
                                                 append!(assignment.assignment[1:assignment.indEndAssignment], [0]),
                                                 assignment.indEndAssignment+1,
-                                                assignment.profits,
+                                                assignment.profit,
                                                 assignment.weight,
                                                 nadirPointsToStudy))
             end
@@ -333,15 +358,19 @@ end
 
 function algoJules!(lowerBound::Vector{Solution}, consecutiveSet::Vector{PairOfSolution}, prob::Problem) end
 
-function main(fname::String = "test.dat"; withHeuristic::Bool = false, withConvex::Bool = false, verbose::Bool = false)
+function main(fname::String = "test.dat"; withHeuristic::Bool = false, withConvex::Bool = true, verbose::Bool = false)
 
-    @assert (!withHeuristic && !withConvex) "Still under construction !"
+    verbose && println("On commence le B&B\n")
+
+    @assert (!withHeuristic && withConvex) "Still under construction !"
 
     """
         Init Variables
     """
 
     prob = parser(fname)
+
+    verbose && println("Notre problème est : $prob\n")
 
     lowerBoundSet = Vector{Solution}()
     consecutiveSet = Vector{PairOfSolution}()
@@ -351,11 +380,11 @@ function main(fname::String = "test.dat"; withHeuristic::Bool = false, withConve
     """
 
     # Calculate the Primal and Dual Set
-    computeLowerBound!(lowerBoundSet, consecutiveSet, prob, Assignment())
+    computeLowerBound!(lowerBoundSet, consecutiveSet, prob, Assignment(), verbose = verbose)
 
     withHeuristic ? algoJules!(lowerBoundSet, consecutiveSet, prob) : nothing
 
-    branchAndBound!(lowerBoundSet, consecutiveSet, prob, withConvex)
+    branchAndBound!(lowerBoundSet, consecutiveSet, prob, withConvex, verbose = verbose)
 
     return lowerBoundSet
 

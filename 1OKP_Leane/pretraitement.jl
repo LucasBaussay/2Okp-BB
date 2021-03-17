@@ -55,28 +55,34 @@ end
 function solutionDantzig(listeObjets::Vector{Objet}, poidsMax::Int64)
 
     #Somme des poids des objets de la solution Dantzig
-    somme::Int64 = listeObjets[1].cout
+    if length(listeObjets) != 0
+        somme::Int64 = listeObjets[1].cout
 
-    #Iterateurs pour le while
-    indObjetCourant = 1
-    ObjetCourant::Objet = listeObjets[indObjetCourant]
+        #Iterateurs pour le while
+        indObjetCourant = 1
+        ObjetCourant::Objet = listeObjets[indObjetCourant]
 
-    #Somme des profits des objets de la solution Dantzig
-    dantzig::Int64 = ObjetCourant.profit
+        #Somme des profits des objets de la solution Dantzig
+        dantzig::Int64 = ObjetCourant.profit
 
-    #Recherche de l'objet cassé
-    while somme <= poidsMax
+        #Recherche de l'objet cassé
+        while somme <= poidsMax && indObjetCourant < length(listeObjets)
 
-        indObjetCourant = indObjetCourant +1
-        ObjetCourant = listeObjets[indObjetCourant]
-        somme = somme + ObjetCourant.cout
-        dantzig = dantzig + ObjetCourant.profit
+            indObjetCourant = indObjetCourant +1
+            ObjetCourant = listeObjets[indObjetCourant]
+            somme = somme + ObjetCourant.cout
+            dantzig = dantzig + ObjetCourant.profit
 
+        end
+
+        #A la sortie de la boucle indObjetCourant est l'indice de l'objet casse
+        somme = somme-ObjetCourant.cout #place prise par les objets dans le sac
+        dantzig = dantzig - ObjetCourant.profit #valeur de la solution dantzig
+    else
+        indObjetCourant = 0
+        somme = 0
+        dantzig = 0
     end
-
-    #A la sortie de la boucle indObjetCourant est l'indice de l'objet casse
-    somme = somme-ObjetCourant.cout #place prise par les objets dans le sac
-    dantzig = dantzig - ObjetCourant.profit #valeur de la solution dantzig
 
     return indObjetCourant, somme , dantzig
 end
@@ -439,7 +445,11 @@ function calculLb0(L::Vector{Objet}, poidsMax::Int64, indObjetSuppr::Int64)
     #On supprime l'objet i du problème
     deleteat!(Lbis, indObjetSuppr)
     #On calcule la solution du nouveau problème
-    ObjCasse::Objet, BorneInf::Int64,  capaResi::Int64, Var0::Vector{Objet}, Var1::Vector{Objet} = borneInfAlgoGlouton(Lbis, poidsMax)
+    if length(Lbis) == 0
+        ObjCasse, BorneInf, capaResi, Var0, Var1 = Objet(), 0, 0, Vector{Objet}(), Vector{Objet}()
+    else
+        ObjCasse::Objet, BorneInf::Int64,  capaResi::Int64, Var0::Vector{Objet}, Var1::Vector{Objet} = borneInfAlgoGlouton(Lbis, poidsMax)
+    end
     #On ajoute l'objet i à la liste des onjets qu'on ajoute pas dans le sac
     append!(Var0, [ObjetSuppr])
 
@@ -457,7 +467,11 @@ function calculLb1(L::Vector{Objet}, poidsMax::Int64, indObjetAjout::Int64)
     #On supprime l'objet i du problème
     deleteat!(Lbis, indObjetAjout)
     #On calcule la solution du nouveau problème (avec un sac à dos plus petit)
-    ObjCasse::Objet, BorneInf::Int64,  capaResi::Int64, Var0::Vector{Objet}, Var1::Vector{Objet} = borneInfAlgoGlouton(Lbis, poidsMax-ObjetAjout.cout)
+    if length(Lbis) != 0
+        ObjCasse::Objet, BorneInf::Int64,  capaResi::Int64, Var0::Vector{Objet}, Var1::Vector{Objet} = borneInfAlgoGlouton(Lbis, poidsMax-ObjetAjout.cout)
+    else
+        ObjCasse, BorneInf,  capaResi, Var0, Var1 = Objet(), 0, 0, Vector{Objet}(), Vector{Objet}()
+    end
 
     #On ajoute l'objet i à la liste des onjets qu'on ajoute dans le sac (sac de base)
     append!(Var1, [ObjetAjout])
@@ -602,7 +616,6 @@ function calculLB1bis(listeObjets::Vector{Objet},indObjetAjout::Int64,indObjetCa
         end
     end
 end
-
 
 #Role: Renvoie la liste des objets qu'on est sur de ne pas prendre, la liste de ceux qu'on est sur de prendre,
 #      la liste de ceux qu'il reste à traiter et la somme des profits des objets qu'on est sur de prendre, ainsi que ces même données pour la
@@ -763,11 +776,11 @@ function calculVariable(L::Vector{Objet}, poidsMax::Int64)
         profitTotal::Int64=sommeProfitObjets(L)
         varsA1::Vector{Objet}=[]
 
-        for ind in 1:longeurL
+        for ind in 1:longueurL
             push!(varsA1,L[ind])
         end
 
-        return [],varsA1,[],profitTotal, VarInf0, VarInf1, BorneInf
+        return [],varsA1,[],profitTotal, [], varsA1, profitTotal
     end
 
 end
@@ -822,7 +835,7 @@ function main_pretrait(i::Int64=50, j::Int64=1)
 end
 
 function main_pretrait(ListObj::Vector{Objet}, poidsMax::Int)
-
+    ListObj = triFusion(ListObj)
     return calculVariable(ListObj, poidsMax)
 
 end
