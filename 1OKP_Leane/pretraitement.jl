@@ -457,6 +457,12 @@ function calculLb0(L::Vector{Objet}, poidsMax::Int64, indObjetSuppr::Int64)
 	return BorneInf, Var0, Var1
 end
 
+"""
+
+                                                                                                                            L'ERREUR EST LA
+
+"""
+
 #Role: Renvoie la valeur de LB1(i) , i correspond à indObjetAjout
 #Préconditions:|L|>=indObjetAjout
 function calculLb1(L::Vector{Objet}, poidsMax::Int64, indObjetAjout::Int64)
@@ -681,6 +687,7 @@ function calculVariable(L::Vector{Objet}, poidsMax::Int64)
             if lb0 < lb1
                 #Si c'est LB1(i) et qu'elle est plus grande que la BorneInf actuelle on met BorneInf à jour (sa valeur et ses listes)
                 if BorneInf < lb1
+
                     BorneInf = lb1
 
                     VarInf0 = Var0Ajout
@@ -719,6 +726,7 @@ function calculVariable(L::Vector{Objet}, poidsMax::Int64)
         #Une fois la valeur finale de la BorneInf obtenue
 
         #Pour tout les objets de la liste
+
         for ind in 1:longueurL
 
             #On regarde si ils sont forcément pris

@@ -40,7 +40,7 @@ struct Assignment
     profit::Vector{Int}
     weight::Int
 
-    nadirPoints::Vector{PairOfSolution}
+    nadirPoints::Vector{Solution}
 end
 
 import Base.show
@@ -157,11 +157,11 @@ function Assignment()
         0,
         Vector{Int}(),
         0,
-        Vector{PairOfSolution}()
+        Vector{Solution}()
     )
 end
 
-function Assignment(subAssignment::Vector{Int}, nadirPoints::Vector{PairOfSolution}, prob::Problem)
+function Assignment(subAssignment::Vector{Int}, lowerBound::Vector{Solution}, prob::Problem)
     indEndAssignment = length(subAssignment)
     assignment = initEmptyAssignment(prob.nbVar)
     assignment[1:indEndAssignment] = subAssignment
@@ -172,6 +172,13 @@ function Assignment(subAssignment::Vector{Int}, nadirPoints::Vector{PairOfSoluti
     for iter = 1:indEndAssignment
         profits += subAssignment[iter] * broadcast(obj -> obj.profits[iter], prob.objs)
         weight += subAssignment[iter] * prob.constraint.weights[iter]
+    end
+
+    nadirPoints = Vector{Solution}(undef, length(lowerBound)-1)
+    for iter = 1:(length(lowerBound)-1)
+        nadirPoints[iter] = Solution(Vector{Bool}(),
+                                    [min(lowerBound[iter].y[iterSub], lowerBound[iter+1].y[iterSub]) for iterSub = 1:prob.nbObj],
+                                    -1)
     end
 
     return Assignment(
