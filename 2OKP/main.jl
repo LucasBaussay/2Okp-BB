@@ -79,6 +79,7 @@ function evaluate(prob::Problem, x::Vector{Bool})
         for iter = 1:prob.nbVar
             if x[iter]
                 y[iterObj] += prob.objs[iterObj].profits[iter]
+                weight += prob.constraint.weights[iter]
             end
         end
     end
@@ -89,6 +90,22 @@ function evaluate(prob::Problem, x::Vector{Bool})
     end
     # the resulting point
     return Solution(x, y, w)
+end
+
+function evaluateLinear(prob::Problem, x::Vector{Float64})
+    y = zeros(Float64, prob.nbObj)
+    weight = 0
+    # GOAL : computing the image of x by prob
+    for iterObj = 1:prob.nbObj
+        for iter = 1:prob.nbVar
+            if x[iter] > 0
+                y[iterObj] += prob.objs[iterObj].profits[iter] * x[iter]
+                weight += prob.constraint.weights[iter] * x[iter]
+            end
+        end
+    end
+    # the resulting point
+    return Solution(x, y, weight/2, 1)
 end
 
 function whichFathomed(upperBound::DualSet, lowerBound::Vector{Solution}, consecutiveSet::Vector{PairOfSolution})
@@ -163,7 +180,7 @@ function createSuperSol(sol::Solution, assignment::Assignment)
     return createSuperSol(sol, assignment, sol.id)
 end
 
-function updateBound!(lowerBound::Vector{Solution}, consecutiveSet::Vector{PairOfSolution}, subExtremPoints::Vector{Solution})
+function linearRelax(prob::Problem, assign::Assignment, indEndAssignment::Int = 0, obj::Int=1, verbose = true)
 
     for sol in subExtremPoints
 
@@ -358,6 +375,9 @@ function branchAndBound!(lowerBound::Vector{Solution}, consecutiveSet::Vector{Pa
             end
 
         else
+
+
+
 
         end
     end
