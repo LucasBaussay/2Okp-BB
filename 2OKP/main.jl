@@ -79,7 +79,7 @@ function evaluate(prob::Problem, x::Vector{Bool})
         for iter = 1:prob.nbVar
             if x[iter]
                 y[iterObj] += prob.objs[iterObj].profits[iter]
-                weight += prob.constraint.weights[iter]
+                w += prob.constraint.weights[iter]
             end
         end
     end
