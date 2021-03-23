@@ -182,6 +182,70 @@ end
 
 function linearRelax(prob::Problem, assign::Assignment, indEndAssignment::Int = 0, obj::Int=1, verbose = true)
 
+    # INITIALIZATION OF THE PROBLEM
+    assignment = assign.assignment
+    # sorts the variable from the best utility to the worst
+    permList = sortperm(prob.objs[obj].profits ./ prob.constraint.weights, rev = true)
+    verbose && println("liste de permut : ", permList)
+    # stocks the perm order to reverse the problem at the end
+    revPermList = sortperm(permList)
+    verbose && println("rev perm list : ", revPermList)
+
+    # if the assignement is empty, fills it with -1, meaning the variable is not assigned yet
+    if assignment == []
+        assignment  = ones(prob.nbVar, 1) * -1.
+    else
+        assignment = assignment * 1.
+    end
+
+    # Weight left given the variables' assignement
+    primLeftWeight = prob.constraint.maxWeight - assign.weight
+    verbose && println("poids restant init : ", primLeftWeight)
+
+    heurSol = zeros(Float64, prob.nbVar)
+    iterLastOne = 0
+
+    for iter = 1:prob.nbVar
+        iterOrdered = permList[iter]
+        println("index : ", assignment, " et ", assignment[iterOrdered])
+        if assignment[iterOrdered] != -1
+            heurSol[iter] = assignment[iterOrdered]
+            if assignment[iterOrdered] == 1
+                iterLastOne = iterOrdered
+            end
+        end
+    end
+
+    verbose && println("iter last one : ", iterLastOne)
+
+    it = indEndAssignment + 1
+
+    # UPPER BOUND COMPUTATION
+
+    # adds all possible objects given the limit weight
+    while primLeftWeight >= prob.constraint.weights[permList[it]]
+        heurSol[it] = 1
+        primLeftWeight -= prob.constraint.weights[permList[it]]
+        it += 1
+        verbose && println("current sol : ", heurSol , " and weight : ", primLeftWeight)
+    end
+
+    # add fragments of the next best object according to the utility
+    # iter corresponds to the limiting object
+    if primLeftWeight != 0
+        heurSol[it] = primLeftWeight / prob.constraint.weights[it]
+        primLeftWeight -= prob.constraint.weights[permList[it]] * primLeftWeight / prob.constraint.weights[it]
+        verbose && println("final assign : ", assignment, " and remaining weight : ", primLeftWeight)
+        # ub = lb + primLeftWeight / prob.constraint.weight[it]*prob.objs[1].profits[permList[it]]
+    end
+
+    # sol = evaluateLinear(prob, heurSol[revPermList])
+    return (heurSol[revPermList])
+end
+
+
+function updateBound!(prob::Problem, assign::Assignment, indEndAssignment::Int = 0, obj::Int=1, verbose = true)
+
     for sol in subExtremPoints
 
         #Tout d'abord on check la domination d'un point
