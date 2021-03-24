@@ -84,7 +84,6 @@ function evaluate(prob::Problem, x::Vector{T}) where T <: Real where S <: Real
         end
     end
     # the resulting point
-    println("x : $x \ny : $y \nw : $(w/2)")
     return Solution(x, y, w/2, -1)
 end
 
@@ -175,6 +174,20 @@ end
 
 function createSuperSol(sol::Solution, assignment::Assignment)
     return createSuperSol(sol, assignment, sol.id)
+end
+
+function feasableSol(sol::Solution, verbose = true)
+    # x::Vector{Float64}
+    # y::Vector{T} where T<:Real
+    # weight::W where W<:Real
+    # id::Int
+
+    for iter in sol.x
+        if !(iter in [1,0])
+            verbose && println("Infeasable sol because x is not Int")
+            return false
+        end
+    end
 end
 
 function linearRelax(prob::Problem, assign::Assignment, indEndAssignment::Int = 0, obj::Int=1, verbose = false)
@@ -298,35 +311,40 @@ function computeLowerBoundLinear!(lowerBound::Vector{Solution}, consecutiveSet::
     end
 end
 
-
-
-function updateBound!(prob::Problem, assign::Assignment, indEndAssignment::Int = 0, obj::Int=1; withConvex = true, verbose = true)
+function updateBound!(lowerBound::Vector{Solution}, consecutiveSet::Vector{PairOfSolution}, subExtremPoints::Vector{Solution}, withConvex = false)
 
     for sol in subExtremPoints
 
-        #Tout d'abord on check la domination d'un point
-        iter = 1
-        foundSolDom = false
-        while iter <= length(lowerBound) && !foundSolDom
-            anotherSol = lowerBound[iter]
+        # println("blabla : $sol")
+        # println("type of sol[x] : $(typeof(sol.x)==Array{Float64,1})")
 
-            if sol > anotherSol
-                foundSolDom = true
-                nbPair = 0
-                iterPair = 1
-                while iterPair <= length(consecutiveSet) && nbPair < 2
-                    pair = consecutiveSet[iterPair]
-                    if pair.sol1 == anotherSol
-                        consecutiveSet[iterPair] = PairOfSolution(sol, pair.sol2)
-                        nbPair += 1
-                    elseif pair.sol2 == anotherSol
-                        consecutiveSet[iterPair] = PairOfSolution(pair.sol1, sol)
-                        nbPair += 1
+        if withConvex || feasableSol(sol)
+            #Tout d'abord on check la domination d'un point
+            # println("###on est ici###")
+            iter = 1
+            foundSolDom = false
+            while iter <= length(lowerBound) && !foundSolDom
+                anotherSol = lowerBound[iter]
+
+                if sol > anotherSol
+                    foundSolDom = true
+                    nbPair = 0
+                    iterPair = 1
+                    while iterPair <= length(consecutiveSet) && nbPair < 2
+                        pair = consecutiveSet[iterPair]
+                        if pair.sol1 == anotherSol
+                            consecutiveSet[iterPair] = PairOfSolution(sol, pair.sol2)
+                            nbPair += 1
+                        elseif pair.sol2 == anotherSol
+                            consecutiveSet[iterPair] = PairOfSolution(pair.sol1, sol)
+                            nbPair += 1
+                        end
+                        iterPair += 1
                     end
-                    iterPair += 1
                 end
+                iter += 1
             end
-            iter += 1
+
         end
 
         if !foundSolDom
@@ -479,7 +497,7 @@ function branchAndBound!(lowerBound::Vector{Solution}, consecutiveSet::Vector{Pa
 
         end
 
-            updateBound!(lowerBound, consecutiveSet, subExtremPoints, withConvex = withConvex)
+            updateBound!(lowerBound, consecutiveSet, subExtremPoints, withConvex)
 
             fathomed, nadirPointsToStudy = whichFathomed(subUpperBound, subExtremPoints, assignment.nadirPoints)
             verbose && println("L'état de ce sous-arbre est : $fathomed")

@@ -16,9 +16,9 @@ struct Problem
 end
 
 struct Solution
-    x::Vector{Float64}
-    y::Vector{T} where T<:Real
-    weight::W where W<:Real
+    x::Vector{Real}
+    y::Vector{Real}
+    weight::Real
     id::Int
 end
 
@@ -119,7 +119,16 @@ function Solution()
     )
 end
 
-function Solution(x::Vector{T}, y::Vector{S}, weight::Int) where T<:Real where S<:Real
+function Solution(x::Vector{Float64}, y::Vector{Float64}, weight::Float64)
+    return Solution(
+        x,
+        y,
+        weight,
+        -1
+    )
+end
+
+function Solution(x::Vector{Bool}, y::Vector{Int}, weight::Int)
     return Solution(
         x,
         y,
