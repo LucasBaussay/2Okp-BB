@@ -71,7 +71,7 @@ function weightedScalarRelax(prob::Problem, λ::Vector{Int})
     )
 end
 
-function evaluate2(prob::Problem, x::Vector{T}) where T <: Real where S <: Real
+function evaluate(prob::Problem, x::Vector{T}) where T <: Real where S <: Real
     y = zeros(Float64, prob.nbObj)
     w = 0
     # GOAL : computing the image of x by prob
@@ -83,13 +83,9 @@ function evaluate2(prob::Problem, x::Vector{T}) where T <: Real where S <: Real
             end
         end
     end
-    for iter = 1:prob.nbVar
-        if x[iter] > 0
-            w += prob.constraint.weights[iter]
-        end
-    end
     # the resulting point
-    return Solution(x, y, w, -1)
+    println("x : $x \ny : $y \nw : $(w/2)")
+    return Solution(x, y, w/2, -1)
 end
 
 function evaluateLinear(prob::Problem, x::Vector{Float64})
@@ -160,8 +156,9 @@ end
 
 function createSuperSol(sol::Solution, assignment::Assignment, id::Int)
     if assignment.indEndAssignment != 0
+        newX = append!(assignment.assignment[1:assignment.indEndAssignment], sol.x)
         return Solution(
-            append!(assignment.assignment[1:assignment.indEndAssignment], sol.x),
+            newX,
             sol.y + assignment.profit,
             sol.weight + assignment.weight,
             id
@@ -262,8 +259,8 @@ function computeLowerBoundLinear!(lowerBound::Vector{Solution}, consecutiveSet::
     verbose && println("On trouve les solutions : $(sol1) et $(sol2)")
 
     # evaluating the two sols and constructing the associated solutions
-    sol1 = evaluate2(prob, sol1)
-    sol2 = evaluate2(prob, sol2)
+    sol1 = evaluate(prob, sol1)
+    sol2 = evaluate(prob, sol2)
 
     verbose && println("On crée les solution lexico : $(sol1.y .+ assignment.profit) et $(sol2.y .+ assignment.profit)")
 
@@ -282,9 +279,12 @@ function computeLowerBoundLinear!(lowerBound::Vector{Solution}, consecutiveSet::
             verbose && println("On étudie la paire de solution : $(solR.y .+ assignment.profit) et $(solL.y .+ assignment.profit)")
             # computing the direction of the search
             λ = [solL.y[2]-solR.y[2], solR.y[1]-solL.y[1]]
+            verbose && println("λ = $λ")
             # computing the resulting solution
             solE = linearRelax(weightedScalarRelax(prob, λ), Assignment())
-            solE = evaluate2(prob, solE)
+            verbose && println("On trouve la solution : $(solE)")
+
+            solE = evaluate(prob, solE)
 
             if sum(λ .* solE.y) > sum(λ .* solR.y) # solE is better than solR according to λ
                 push!(lowerBound, createSuperSol(solE, assignment)) # solE is solution we want
@@ -300,7 +300,7 @@ end
 
 
 
-function updateBound!(prob::Problem, assign::Assignment, indEndAssignment::Int = 0, obj::Int=1, withConvex = true, verbose = true)
+function updateBound!(prob::Problem, assign::Assignment, indEndAssignment::Int = 0, obj::Int=1; withConvex = true, verbose = true)
 
     for sol in subExtremPoints
 
@@ -479,7 +479,7 @@ function branchAndBound!(lowerBound::Vector{Solution}, consecutiveSet::Vector{Pa
 
         end
 
-            updateBound!(lowerBound, consecutiveSet, subExtremPoints, withConvex)
+            updateBound!(lowerBound, consecutiveSet, subExtremPoints, withConvex = withConvex)
 
             fathomed, nadirPointsToStudy = whichFathomed(subUpperBound, subExtremPoints, assignment.nadirPoints)
             verbose && println("L'état de ce sous-arbre est : $fathomed")
@@ -526,11 +526,11 @@ function main(fname::String = "test.dat"; withHeuristic::Bool = false, withConve
     """
 
     # Calculate the Primal and Dual Set
-    computeLowerBoundLinear!(lowerBoundSet, consecutiveSet, prob, Assignment(), verbose = verbose)
+    computeLowerBound!(lowerBoundSet, consecutiveSet, prob, Assignment(), verbose = verbose)
 
     withHeuristic ? algoJules!(lowerBoundSet, consecutiveSet, prob) : nothing
 
-    # branchAndBound!(lowerBoundSet, consecutiveSet, prob, withConvex, verbose = verbose)
+    branchAndBound!(lowerBoundSet, consecutiveSet, prob, withConvex, verbose = verbose)
 
     return lowerBoundSet
 

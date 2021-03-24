@@ -16,9 +16,9 @@ struct Problem
 end
 
 struct Solution
-    x::Vector{S} where S<:Real
+    x::Vector{Float64}
     y::Vector{T} where T<:Real
-    weight::Int
+    weight::W where W<:Real
     id::Int
 end
 
@@ -34,7 +34,7 @@ struct DualSet
 end
 
 struct Assignment
-    assignment::Vector{Int}
+    assignment::Vector{T} where T<:Real
     indEndAssignment::Int
 
     profit::Vector{Int}
@@ -104,7 +104,7 @@ function parser(fname::String)
 end
 
 function initEmptyAssignment(nbVar)
-    assignment = zeros(Int, nbVar)
+    assignment = zeros(Real, nbVar)
     for iter = 1:nbVar
         assignment[iter] = -1
     end
@@ -153,7 +153,7 @@ end
 
 function Assignment()
     return Assignment(
-        Vector{Int}(),
+        Vector{Real}(),
         0,
         Vector{Int}(),
         0,
