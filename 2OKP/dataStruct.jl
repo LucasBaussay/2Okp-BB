@@ -1,6 +1,6 @@
 
 struct Obj
-    profits::Vector{Int}
+    profits::Vector{T} where T<:Real
 end
 
 struct Const
@@ -16,8 +16,8 @@ struct Problem
 end
 
 struct Solution
-    x::Vector{Bool}
-    y::Vector{Int}
+    x::Vector{S} where S<:Real
+    y::Vector{T} where T<:Real
     weight::Int
     id::Int
 end
@@ -119,7 +119,7 @@ function Solution()
     )
 end
 
-function Solution(x::Vector{Bool}, y::Vector{Int}, weight::Int)
+function Solution(x::Vector{T}, y::Vector{S}, weight::Int) where T<:Real where S<:Real
     return Solution(
         x,
         y,

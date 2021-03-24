@@ -71,25 +71,25 @@ function weightedScalarRelax(prob::Problem, λ::Vector{Int})
     )
 end
 
-function evaluate(prob::Problem, x::Vector{Bool})
-    y = zeros(Int, prob.nbObj)
+function evaluate2(prob::Problem, x::Vector{T}) where T <: Real where S <: Real
+    y = zeros(Float64, prob.nbObj)
     w = 0
     # GOAL : computing the image of x by prob
     for iterObj = 1:prob.nbObj
         for iter = 1:prob.nbVar
-            if x[iter]
-                y[iterObj] += prob.objs[iterObj].profits[iter]
-                w += prob.constraint.weights[iter]
+            if x[iter] > 0
+                y[iterObj] += prob.objs[iterObj].profits[iter] * x[iter]
+                w += prob.constraint.weights[iter] * x[iter]
             end
         end
     end
     for iter = 1:prob.nbVar
-        if x[iter]
+        if x[iter] > 0
             w += prob.constraint.weights[iter]
         end
     end
     # the resulting point
-    return Solution(x, y, w)
+    return Solution(x, y, w, -1)
 end
 
 function evaluateLinear(prob::Problem, x::Vector{Float64})
@@ -180,7 +180,7 @@ function createSuperSol(sol::Solution, assignment::Assignment)
     return createSuperSol(sol, assignment, sol.id)
 end
 
-function linearRelax(prob::Problem, assign::Assignment, indEndAssignment::Int = 0, obj::Int=1, verbose = true)
+function linearRelax(prob::Problem, assign::Assignment, indEndAssignment::Int = 0, obj::Int=1, verbose = false)
 
     # INITIALIZATION OF THE PROBLEM
     assignment = assign.assignment
@@ -207,7 +207,7 @@ function linearRelax(prob::Problem, assign::Assignment, indEndAssignment::Int = 
 
     for iter = 1:prob.nbVar
         iterOrdered = permList[iter]
-        println("index : ", assignment, " et ", assignment[iterOrdered])
+        verbose && println("index : $heurSol")
         if assignment[iterOrdered] != -1
             heurSol[iter] = assignment[iterOrdered]
             if assignment[iterOrdered] == 1
@@ -235,16 +235,72 @@ function linearRelax(prob::Problem, assign::Assignment, indEndAssignment::Int = 
     if primLeftWeight != 0
         heurSol[it] = primLeftWeight / prob.constraint.weights[it]
         primLeftWeight -= prob.constraint.weights[permList[it]] * primLeftWeight / prob.constraint.weights[it]
-        verbose && println("final assign : ", assignment, " and remaining weight : ", primLeftWeight)
         # ub = lb + primLeftWeight / prob.constraint.weight[it]*prob.objs[1].profits[permList[it]]
     end
+
+    verbose && println("final assign : ", heurSol[revPermList], " and remaining weight : ", primLeftWeight)
 
     # sol = evaluateLinear(prob, heurSol[revPermList])
     return (heurSol[revPermList])
 end
 
+function computeLowerBoundLinear!(lowerBound::Vector{Solution}, consecutiveSet::Vector{PairOfSolution}, mainProb::Problem, assignment::Assignment = Assignment(); M::Int = 1000, verbose = true)
 
-function updateBound!(prob::Problem, assign::Assignment, indEndAssignment::Int = 0, obj::Int=1, verbose = true)
+    verbose && println("LB linear for the assignment $(assignment.assignment)")
+
+    prob = subProb(mainProb, assignment)
+    verbose && println("Le problème auxiliaire équivaut à $prob ")
+
+    assignment.indEndAssignment == 0 ? assignment = Assignment(Vector{Float64}(), 0, zeros(Int, mainProb.nbObj), 0, Vector{PairOfSolution}()) : nothing
+
+    S = Vector{Tuple{Solution, Solution}}()
+
+    # computing the two first points, sol1 is the best for the only the objective number 1, and sol2 for the objective number 2.
+    sol1 = linearRelax(weightedScalarRelax(prob, [M, 1]), assignment, assignment.indEndAssignment)
+    sol2 = linearRelax(weightedScalarRelax(prob, [1, M]), assignment, assignment.indEndAssignment)
+
+    verbose && println("On trouve les solutions : $(sol1) et $(sol2)")
+
+    # evaluating the two sols and constructing the associated solutions
+    sol1 = evaluate2(prob, sol1)
+    sol2 = evaluate2(prob, sol2)
+
+    verbose && println("On crée les solution lexico : $(sol1.y .+ assignment.profit) et $(sol2.y .+ assignment.profit)")
+
+    if sol1.y == sol2.y # solutions are identicals
+        push!(lowerBound, createSuperSol(sol1, assignment))
+    else # solutions are different
+        push!(S, (sol1, sol2)) # we'll need to study (sol1,sol2)
+        superSol1 = createSuperSol(sol1, assignment)
+        superSol2 = createSuperSol(sol2, assignment)
+        push!(lowerBound, superSol1, superSol2) # sol1 and sol2 are supported efficient and extreme solutions
+
+        # goal : compute the dichotomy
+        while length(S) != 0 # while we have solutions to study
+            solR, solL = pop!(S) # get the two consecutive points from the queue of tuples to study
+
+            verbose && println("On étudie la paire de solution : $(solR.y .+ assignment.profit) et $(solL.y .+ assignment.profit)")
+            # computing the direction of the search
+            λ = [solL.y[2]-solR.y[2], solR.y[1]-solL.y[1]]
+            # computing the resulting solution
+            solE = linearRelax(weightedScalarRelax(prob, λ), Assignment())
+            solE = evaluate2(prob, solE)
+
+            if sum(λ .* solE.y) > sum(λ .* solR.y) # solE is better than solR according to λ
+                push!(lowerBound, createSuperSol(solE, assignment)) # solE is solution we want
+                push!(S, (solR, solE), (solE, solL)) # now we need to study (solR, solE) and (solE, solL)
+                verbose && println("On a trouvé la solution : $(solE.y .+ assignment.profit)")
+            else # solE is equal to solR according to λ, so we didn't find new solutions
+                push!(consecutiveSet, PairOfSolution(createSuperSol(solR, assignment), createSuperSol(solL, assignment), length(consecutiveSet)+1)) # we know we won't find solutions between solR, solL, so we memorize the tuple
+                verbose && println("On a rien trouvé dans cette direction")
+            end
+        end
+    end
+end
+
+
+
+function updateBound!(prob::Problem, assign::Assignment, indEndAssignment::Int = 0, obj::Int=1, withConvex = true, verbose = true)
 
     for sol in subExtremPoints
 
@@ -417,7 +473,13 @@ function branchAndBound!(lowerBound::Vector{Solution}, consecutiveSet::Vector{Pa
             computeLowerBound!(subExtremPoints, subConsecutiveSet, prob, assignment, M = M, verbose = verbose)
             subUpperBound = computeUpperBound(subConsecutiveSet)
 
-            updateBound!(lowerBound, consecutiveSet, subExtremPoints)
+        else
+            computeLowerBoundLinear!(subExtremPoints, subConsecutiveSet, prob, assignment,  M = M, verbose = verbose)
+            subUpperBound = computeUpperBound(subConsecutiveSet)
+
+        end
+
+            updateBound!(lowerBound, consecutiveSet, subExtremPoints, withConvex)
 
             fathomed, nadirPointsToStudy = whichFathomed(subUpperBound, subExtremPoints, assignment.nadirPoints)
             verbose && println("L'état de ce sous-arbre est : $fathomed")
@@ -437,24 +499,16 @@ function branchAndBound!(lowerBound::Vector{Solution}, consecutiveSet::Vector{Pa
                                                 assignment.weight,
                                                 nadirPointsToStudy))
             end
-
-        else
-
-
-
-
-        end
     end
-
 end
 
 function algoJules!(lowerBound::Vector{Solution}, consecutiveSet::Vector{PairOfSolution}, prob::Problem) end
 
-function main(fname::String = "test.dat"; withHeuristic::Bool = false, withConvex::Bool = true, verbose::Bool = false)
+function main(fname::String = "test.dat"; withHeuristic::Bool = false, withConvex::Bool = false, verbose::Bool = false)
 
     verbose && println("On commence le B&B\n")
 
-    @assert (!withHeuristic && withConvex) "Still under construction !"
+    # @assert (!withHeuristic && withConvex) "Still under construction !"
 
     """
         Init Variables
@@ -472,11 +526,11 @@ function main(fname::String = "test.dat"; withHeuristic::Bool = false, withConve
     """
 
     # Calculate the Primal and Dual Set
-    computeLowerBound!(lowerBoundSet, consecutiveSet, prob, Assignment(), verbose = verbose)
+    computeLowerBoundLinear!(lowerBoundSet, consecutiveSet, prob, Assignment(), verbose = verbose)
 
     withHeuristic ? algoJules!(lowerBoundSet, consecutiveSet, prob) : nothing
 
-    branchAndBound!(lowerBoundSet, consecutiveSet, prob, withConvex, verbose = verbose)
+    # branchAndBound!(lowerBoundSet, consecutiveSet, prob, withConvex, verbose = verbose)
 
     return lowerBoundSet
 

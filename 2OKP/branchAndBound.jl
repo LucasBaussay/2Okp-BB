@@ -37,19 +37,19 @@ end
 """
     return y the point associated with the solution x and the problem prob
 """
-function evaluate(prob::Problem, x::Vector{Bool})
-    y = zeros(Float64, prob.nbObj)
-    # GOAL : computing the image of x by prob
-    for iterObj = 1:prob.nbObj
-        for iter = 1:prob.nbVar
-            if x[iter]
-                y[iterObj] += prob.objs[iterObj].profits[iter]
-            end
-        end
-    end
-    # the resulting point
-    return Solution(x, y)
-end
+# function evaluate(prob::Problem, x::Vector{Bool})
+#     y = zeros(Float64, prob.nbObj)
+#     # GOAL : computing the image of x by prob
+#     for iterObj = 1:prob.nbObj
+#         for iter = 1:prob.nbVar
+#             if x[iter]
+#                 y[iterObj] += prob.objs[iterObj].profits[iter]
+#             end
+#         end
+#     end
+#     # the resulting point
+#     return Solution(x, y)
+# end
 
 """
     whichFathomed(upperBound::DualSet, lowerBound::Vector{Solution}, S::Vector{Solution}, consecutivePoint::Vector{Tuple{Solution, Solution}})
