@@ -87,6 +87,9 @@ function solve1OKP(prob::Problem; verbose = false)
 
     while iter <= prob.nbVar && prob.constraint.weights[permList[iter]] <= poidsRestPrim
         bestSolPrim[iter] = 1
+        
+        verbose && println("On choisit de mettre l'objet $(permList[iter])")
+        
         poidsRestPrim -= prob.constraint.weights[permList[iter]]
         lb += prob.objs[1].profits[permList[iter]]
         iterLastOne = iter
@@ -98,16 +101,24 @@ function solve1OKP(prob::Problem; verbose = false)
     else
         return bestSolPrim[revPermList]
     end
+    
+    verbose && println("La upperBound vaut donc : $ub")
 
     while iter <= prob.nbVar && poidsRestPrim != 0
         if prob.constraint.weights[permList[iter]] <= poidsRestPrim
             bestSolPrim[iter] = 1
+        
+       		verbose && println("On choisit de mettre l'objet $(permList[iter])")
+        
             poidsRestPrim -= prob.constraint.weights[permList[iter]]
             lb += prob.objs[1].profits[permList[iter]]
             iterLastOne = iter
+            
         end
         iter += 1
     end
+    
+    verbose && println("La lowerBound vaut donc : $lb")
 
     """
 
