@@ -54,17 +54,11 @@ function jules(fname::String = "test.dat", methodName::String = "TwoPhases", par
     testBandB(prob)
 end
 
-function main(fname::String = "test.dat", methodName::String = "TwoPhases", params...)
+function main(fname::String = "1.dat"; verbose = false)
 
     prob = parser(fname)
 
-    if methodName == "TwoPhases"
-        @assert length(params) == 0 #A modifier suivant la structure des paramètres
+    sol = solve1OKPMain(weightedScalarRelax(prob,[1.,0.]), verbose = verbose)
 
-        return firstPhase(prob, 0.1)
-
-    end
-
-
-
+    return sol
 end

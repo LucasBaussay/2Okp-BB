@@ -28,37 +28,40 @@ end
 import Base.show
 
 function Base.show(io::IO, prob::Problem)
-    println(io, "Knapsack problem with $(prob.nbObj) objectives\n")
-    for iterObj = 1:prob.nbObj
-        print(io, "max z_$iterObj(x) = ")
+    if prob.nbVar != 0
+        println(io, "Knapsack problem with $(prob.nbObj) objectives\n")
+        for iterObj = 1:prob.nbObj
+            print(io, "max z_$iterObj(x) = ")
+            for iterVar = 1:prob.nbVar-1
+                if prob.objs[iterObj].profits[iterVar] != 1
+                    print(io, "$(prob.objs[iterObj].profits[iterVar])x_$iterVar + ")
+                else
+                    print(io, "x_$iterVar + ")
+                end
+            end
+            if prob.objs[iterObj].profits[end] != 1
+                println(io, "$(prob.objs[iterObj].profits[end])x_$(prob.nbVar)")
+            else
+                println(io, "x_$(prob.nbVar)")
+            end
+        end
+        println(io, " ")
+        print(io, "s.t.     ")
         for iterVar = 1:prob.nbVar-1
-            if prob.objs[iterObj].profits[iterVar] != 1
-                print(io, "$(prob.objs[iterObj].profits[iterVar])x_$iterVar + ")
+            if prob.constraint.weights[iterVar] != 1
+                print(io, "$(prob.constraint.weights[iterVar])x_$iterVar + ")
             else
                 print(io, "x_$iterVar + ")
             end
         end
-        if prob.objs[iterObj].profits[end] != 1
-            println(io, "$(prob.objs[iterObj].profits[end])x_$(prob.nbVar)")
+        if prob.constraint.weights[end] != 1
+            println(io, "$(prob.constraint.weights[end])x_$(prob.nbVar) ≤ $(prob.constraint.maxWeight)")
         else
-            println(io, "x_$(prob.nbVar)")
+            println(io, "x_$(prob.nbVar) ≤ $(prob.constraint.maxWeight)")
         end
-    end
-    println(io, " ")
-    print(io, "s.t.     ")
-    for iterVar = 1:prob.nbVar-1
-        if prob.constraint.weights[iterVar] != 1
-            print(io, "$(prob.constraint.weights[iterVar])x_$iterVar + ")
-        else
-            print(io, "x_$iterVar + ")
-        end
-    end
-    if prob.constraint.weights[end] != 1
-        println(io, "$(prob.constraint.weights[end])x_$(prob.nbVar) ≤ $(prob.constraint.maxWeight)")
     else
-        println(io, "x_$(prob.nbVar) ≤ $(prob.constraint.maxWeight)")
+        print(io, "Empty Knapsack ! ")
     end
-
 end
 
 
@@ -82,21 +85,9 @@ function parser(fname::String)
     )
 end
 
-function subProblem(prob::Problem, assignement::Vector{Int}, iter::Int)
-
-    actualWeight = 0.
-
-    for ind = 1:iter
-        actualWeight += assignement[ind] * prob.constraint.weights[ind]
-    end
-
-    return Problem(
-
-        prob.nbObj,
-        prob.nbVar-iter,
-        [Obj(prob.objs[ind].profits[(iter+1):end]) for ind =1:prob.nbObj],
-        Const(prob.constraint.maxWeight - actualWeight, prob.constraint.weights[(iter+1):end])
-
+function Solution()
+    return Solution(
+        Vector{Bool}(),
+        Vector{Float64}()
     )
-
 end
